@@ -1,0 +1,27 @@
+# Python 2/3 byte code stuff
+__pycache__/
+*.py[cod]
+
+# PyCharm
+.idea
+
+# Distribution
+dist/
+bin/
+
+# Misc.
+audio/
+other/
+icon/
+
+# flake8
+tox.ini
+
+# Log:
+*.log
+
+# Configs
+*.json
+
+# My markdown compiler
+README.html
