@@ -16,10 +16,10 @@
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import sys
 import logging
+from string import digits
 
 import wx  # Tested w/ wxPhoenix 3.0.2
-import wx.lib.intctrl
-import ObjectListView as OLV
+import ObjectListView as olv
 
 import ffmpeg
 import jam_tools
@@ -39,6 +39,7 @@ ID_SELECT_PROFILE = wx.NewId()
 ID_START = wx.NewId()
 ID_TRACKS = wx.NewId()
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
+
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -83,12 +84,12 @@ class MainPanel(wx.Panel):
         self.selection = self.profile.GetSelection()
         self.audio_dir = self.games[self.selection].audio_dir
 
-        self.track_list = OLV.ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
+        self.track_list = olv.ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
                                              useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
-            OLV.ColumnDefn(title="Title", align="left", width=220, valueGetter="name", isSpaceFilling=True),
-            OLV.ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", isSpaceFilling=True),
+            olv.ColumnDefn(title="Title", align="left", width=220, valueGetter="name", isSpaceFilling=True),
+            olv.ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", isSpaceFilling=True),
         ])
 
         self.track_list.rowFormatter = lambda x, y: x.SetTextColour(wx.RED) if y.get_aliases() == NO_ALIASES else None
@@ -183,7 +184,7 @@ class SetupDialog(wx.Dialog):
         separator = wx.StaticLine(self, style=wx.LI_HORIZONTAL, size=(self.profile.GetSize()[0], 1))
 
         self.prof_name = wx.TextCtrl(self)
-        prof_name_text = wx.StaticText(self, label="Real Name (e.g. Counter-Strike: Source)")
+        prof_name_text = wx.StaticText(self, label="Profile name (e.g. Counter-Strike: Source)")
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
         game_path_text = wx.StaticText(self, label="Path to game (e.g. steamapps/common/Team Fortress 2/tf2)")
@@ -192,7 +193,7 @@ class SetupDialog(wx.Dialog):
         else:
             self.game_path.SetPath(config.steam_path)
 
-        self.game_rate = wx.lib.intctrl.IntCtrl(self, allow_none=False)
+        self.game_rate = wx.TextCtrl(self, validator=IntegerValidator())
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
         save_button = wx.Button(self, wx.ID_SAVE, label="Save Game")
@@ -263,7 +264,7 @@ class SetupDialog(wx.Dialog):
         if self.selection == wx.NOT_FOUND:
             return wx.MessageBox(message="You must select a game first!", caption="Info", parent=self)
 
-        self.profile.SetString(self.selection, self.name.GetValue())
+        self.profile.SetString(self.selection, self.prof_name.GetValue())
         self.games[self.selection].name = self.prof_name.GetValue()
         self.games[self.selection].config_path = self.game_path.GetPath()
         self.games[self.selection].audio_rate = self.game_rate.GetValue()
@@ -271,7 +272,38 @@ class SetupDialog(wx.Dialog):
         config.save()
 
 
-# This stuff will probably get moved somewhere
+class IntegerValidator(wx.Validator):
+    # IntCtrl is broken on Python 3, and Robin Dunn is dead or something. None of the (very good ones, by the way)
+    # pull requests have been pulled for months. So we have to use a validator :(
+    def __init__(self):
+        wx.Validator.__init__(self)
+        self.Bind(wx.EVT_CHAR, self.on_char)
+
+    def Clone(self):
+        return self
+
+    def Validate(self, parent):
+        for x in self.GetWindow().GetValue():
+            if x not in digits:
+                return False
+        else:
+            return True
+
+    # Not doing this results in a popup saying "Could not transfer data to window"
+    def TransferToWindow(self):
+        return True
+
+    def TransferFromWindow(self):
+        return True
+
+    # Filter as user types.
+    def on_char(self, event):
+        if chr(event.GetKeyCode()) in digits:
+            event.Skip()
+            return
+        else:
+            return
+
 
 def get_steam_path():
     # type: () -> str

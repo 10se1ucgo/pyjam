@@ -30,7 +30,7 @@ from jam_about import __version__
 class Config(object):
     def __init__(self, config_file):
         self.config_file = config_file
-        self.steam_path, self.games = self.load()
+        self.games = self.load()
 
     def new(self):
         # this is ugly
@@ -48,7 +48,7 @@ class Config(object):
 
     def load(self):
         # type: () -> str, list
-        if os.path.exists(self.config_file):
+        try:
             with open(self.config_file, 'r') as f:
                 try:
                     config_json = json.load(f)
@@ -62,11 +62,11 @@ class Config(object):
                 else:
                     for game in config_json.get('games', []):
                         if not bindable(game.get('play_key', 'F8')):
-                            game['play_key'] = 'F8s'
+                            game['play_key'] = 'F8'
                         if not bindable(game.get('relay_key', '=')):
                             game['relay_key'] = '='
-                    return config_json.get('steam_path', ''), config_json.get('games', [])
-        else:
+                    config_json.get('games', [])
+        except (FileNotFoundError, IOError):
             self.new()
             return self.load()
 
@@ -118,7 +118,7 @@ class Track(object):
 
 
 class Game(object):
-    def __init__(self, audio_dir=os.curdir, audio_rate=11025, config_path=os.curdir,
+    def __init__(self, audio_dir=os.curdir, audio_rate='11025', config_path=os.curdir,
                  name=None, play_key='F8', relay_key='=', use_aliases=True):
         self.audio_dir = audio_dir
         self.audio_rate = audio_rate
@@ -163,9 +163,21 @@ def get_tracks(audio_path):
     #     "song1.wav": ["alias1", "alias2", "etc."],
     #     "song2.wav": ["alias1", "alias2", "etc."]
     # }
+
+    try:
+        with open(os.path.join(audio_path, 'aliases.json')) as f:
+            aliases_json = json.load(f)
+    except (FileNotFoundError, IOError):
+        aliases_json = None
+
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
-        aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
+        name_ext = os.path.basename(track)
+        if aliases_json and name_ext in aliases_json:
+            aliases = [filter_aliases(str(x)) for x in aliases_json[name_ext]
+                       if x not in black_list and x not in whitespace]
+        else:
+            aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
         black_list.extend(aliases)
         current_tracks.append(Track(name, aliases, track))
 

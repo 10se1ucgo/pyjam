@@ -14,7 +14,8 @@ It doesn't work yet, by the way!
     - right click on track>context menu>set aliases
     - [x] Format for custom aliases 
     - ```{"song1.wav": ["alias1", "alias2", "etc."], "song2.wav": ["alias1", "alias2", "etc"]}```
-      - [ ] Read and write format
+      - [x] Read format
+      - [ ] Write format
 - [ ] Get the actual playing audio part of the program working
   - [x] Write the initial configs
   - [ ] Watch 'jam_cmd.cfg' for updates and poll for requested song
