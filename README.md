@@ -1,6 +1,35 @@
 # pyjam
 An opensource, cross-platform audio player for Source and GoldSrc engine based games, written in Python
 
+It doesn't work yet, by the way!
+
+# TODO
+- [ ] Base
+  - [x] Track list (ObjectListView)
+  - [x] Switch between games
+  - [ ] Allow for custom aliases
+    - [ ] GUI for implementing custom aliases 
+    - right click on track>context menu>set aliases
+    - [x] Format for custom aliases 
+    - ```{"song1.wav": ["alias1", "alias2", "etc."], "song2.wav": ["alias1", "alias2", "etc"]}```
+      - [ ] Read and write format
+- [ ] Get the actual playing audio part of the program working
+  - [x] Write the initial configs
+  - [ ] Watch 'jam_cmd.cfg' for updates and poll for requested song
+  - [ ] Copy requested song to root dir
+- [ ] Implement an audio converter
+  - [x] FFmpeg downloader
+  - [x] FFmpeg convert command
+  - [ ] GUI for accessing converter
+- [ ] Implement a config editor
+  - [x] Base reading and writing
+  - [ ] Support all fields
+  - [ ] Make it pretty.
+- [ ] Implement audio downloading?
+  - [ ] youtube-dl
+  - [ ] GUI for accessing downloader
+
+
 # LICENSE
 ```
 Copyright (C) 10se1ucgo 2016
