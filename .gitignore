@@ -20,8 +20,8 @@ tox.ini
 # Log:
 *.log
 
-# Configs
-*.json
+# Config
+jamconfig.json
 
 # My markdown compiler
 README.html
