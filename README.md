@@ -1,4 +1,6 @@
 # pyjam
+![header image](http://i.imgur.com/ic7toeV.png)
+
 An opensource, cross-platform audio player for Source and GoldSrc engine based games, written in Python
 
 It doesn't work yet, by the way!
