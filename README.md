@@ -6,16 +6,16 @@ An opensource, cross-platform audio player for Source and GoldSrc engine based g
 It doesn't work yet, by the way!
 
 # TODO
-- [ ] Base
+- [x] Base UI stuff
   - [x] Track list (ObjectListView)
   - [x] Switch between games
-  - [ ] Allow for custom aliases
-    - [ ] GUI for implementing custom aliases 
+  - [x] Allow for custom aliases
+    - [x] GUI for implementing custom aliases 
     - right click on track>context menu>set aliases
     - [x] Format for custom aliases 
-    - ```{"song1.wav": ["alias1", "alias2", "etc."], "song2.wav": ["alias1", "alias2", "etc"]}```
+    - ```{"song1": ["alias1", "alias2", "etc."], "song2": ["alias1", "alias2", "etc"]}```
       - [x] Read format
-      - [ ] Write format
+      - [x] Write format
 - [ ] Get the actual playing audio part of the program working
   - [x] Write the initial configs
   - [ ] Watch 'jam_cmd.cfg' for updates and poll for requested song

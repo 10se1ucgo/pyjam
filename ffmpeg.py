@@ -63,11 +63,11 @@ class FFmpegDownloaderThread(threading.Thread):
                         f.write(chunk)
                         f.flush()
                         os.fsync(f.fileno())
-                    pub.sendMessage("progress_update", message=file_size_dl)
+                    pub.sendMessage('progress_update', message=file_size_dl)
                 except StopIteration:
                     after = time.time()
                     print(after - now)
-                    pub.sendMessage("completed")
+                    pub.sendMessage('completed')
                     break
 
 
@@ -78,8 +78,8 @@ class FFmpegDownloader(wx.ProgressDialog):
                                    style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE |
                                    wx.PD_CAN_ABORT)
 
-        pub.subscribe(self.update, "progress_update")
-        pub.subscribe(self.complete, "completed")
+        pub.subscribe(self.update, 'progress_update')
+        pub.subscribe(self.complete, 'completed')
         self.downloader = FFmpegDownloaderThread(url, file_size)
 
     def update(self, message):
@@ -97,7 +97,7 @@ class FFmpegDownloader(wx.ProgressDialog):
 
 class FFmpegConvertDialog(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, title='Audio Converter', style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        wx.Dialog.__init__(self, parent, title="Audio Converter", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         wx.StaticText(self, label="Hi, I don't know how to program.", pos=(self.GetSize()[0] // 2, self.GetSize()[1] // 2))
 
         wx.MessageDialog(self, "Not implemented!", "pyjam").ShowModal()
@@ -117,10 +117,11 @@ def find():
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     # type: (str, str, str, str, str) -> None
-    subprocess.call("{bin} -y -i {file} -f -ac {codec} -ar {rate} -vol {vol} {destination}.wav".format(bin=find(),
-                                                                                                       file=file,
-                                                                                                       codec=codec,
-                                                                                                       rate=rate,
-                                                                                                       dest=dest))
+    subprocess.call('{bin} -y -i {file} -f -ac {codec} -ar {rate} -vol {vol} {dest}.wav'.format(bin=find(),
+                                                                                                file=file,
+                                                                                                codec=codec,
+                                                                                                rate=rate,
+                                                                                                vol=vol,
+                                                                                                dest=dest))
 
 logger = logging.getLogger('jam')

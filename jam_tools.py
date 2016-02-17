@@ -160,8 +160,8 @@ def get_tracks(audio_path):
     # TODO: Create a GUI for creating custom aliases.
     # TODO: Read an 'aliases.json' file for custom aliases. Format will be as follows:
     # {
-    #     "song1.wav": ["alias1", "alias2", "etc."],
-    #     "song2.wav": ["alias1", "alias2", "etc."]
+    #     "song1": ["alias1", "alias2", "etc."],
+    #     "song2": ["alias1", "alias2", "etc."]
     # }
 
     try:
@@ -172,9 +172,8 @@ def get_tracks(audio_path):
 
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
-        name_ext = os.path.basename(track)
-        if aliases_json and name_ext in aliases_json:
-            aliases = [filter_aliases(str(x)) for x in aliases_json[name_ext]
+        if aliases_json and name in aliases_json:
+            aliases = [filter_aliases(str(x)) for x in aliases_json[name]
                        if x not in black_list and x not in whitespace]
         else:
             aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]

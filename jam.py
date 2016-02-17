@@ -15,11 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import sys
+import os
 import logging
+import json
 from string import digits
 
 import wx  # Tested w/ wxPhoenix 3.0.2
-import ObjectListView as olv
+from ObjectListView import ColumnDefn, ObjectListView
 
 import ffmpeg
 import jam_tools
@@ -38,6 +40,7 @@ ID_SELECT_GAME = wx.NewId()
 ID_SELECT_PROFILE = wx.NewId()
 ID_START = wx.NewId()
 ID_TRACKS = wx.NewId()
+ID_SET_ALIASES = wx.NewId()
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
 
@@ -84,16 +87,18 @@ class MainPanel(wx.Panel):
         self.selection = self.profile.GetSelection()
         self.audio_dir = self.games[self.selection].audio_dir
 
-        self.track_list = olv.ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
-                                             useAlternateBackColors=False)
+        self.track_list = ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
+                                         useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
-            olv.ColumnDefn(title="Title", align="left", width=220, valueGetter="name", isSpaceFilling=True),
-            olv.ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", isSpaceFilling=True),
+            ColumnDefn(title="Title", align="left", width=220, valueGetter="name", isSpaceFilling=True),
+            ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", isSpaceFilling=True),
         ])
 
         self.track_list.rowFormatter = lambda x, y: x.SetTextColour(wx.RED) if y.get_aliases() == NO_ALIASES else None
         self.track_list.SetObjects(jam_tools.get_tracks(self.audio_dir))
+
+        self.selected_track = None
 
         refresh_but = wx.Button(self, wx.ID_REFRESH, "Refresh tracks")
         start_button = wx.Button(self, ID_START, "Start")
@@ -121,7 +126,8 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.convert, id=wx.ID_CONVERT)
         # TODO: Use this for things such as manually adding aliases
         # TODO: Create a GUI for above. (Context menu>Set aliases>GUI)
-        # self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, lambda x: logger.info(x.GetIndex()), id=ID_TRACKS)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, id=ID_TRACKS)
+        self.Bind(wx.EVT_MENU, self.set_aliases, id=ID_SET_ALIASES)
 
     def game_select(self, event):
         # type: (int) -> None
@@ -150,16 +156,50 @@ class MainPanel(wx.Panel):
                 url = "http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
                 ffmpeg.FFmpegDownloader(self, url)
             elif do_download == wx.ID_NO:
-                info = ("Please download it and place FFmpeg.exe in your PATH\n"
+                download_info = ("Please download it and place FFmpeg.exe in your PATH\n"
                         "or inside the folder pyjam is in. You can download it at:\n\n"
                         "http://ffmpeg.zeranoe.com/")
 
-                wx.MessageDialog(self, info, "pyjam").ShowModal()
+                download_info_dialog = wx.MessageDialog(self, download_info, "pyjam").ShowModal()
+                download_info_dialog.Destroy()
+            do_download.Destroy()
         elif ffmpeg.find() is None:
             wx.MessageDialog(self, "You require FFmpeg to convert audio. Please install it.", "pyjam").ShowModal()
         else:
             # TODO: Implement audio conversion with FFmpeg.
             ffmpeg.FFmpegConvertDialog(self)
+
+    def list_right_click(self, event):
+        self.selected_track = event.GetIndex()
+        context_menu = wx.Menu()
+        context_menu.Append(ID_SET_ALIASES, "Set custom aliases")
+        self.PopupMenu(context_menu)
+        context_menu.Destroy()
+
+    def set_aliases(self, event):
+        track_obj = self.track_list.GetObjects()[self.selected_track]
+        default_aliases = ' '.join(track_obj.aliases)
+        dialog = wx.TextEntryDialog(self, "Enter aliases separated by spaces.", "pyjam", default_aliases)
+        if dialog.ShowModal() != wx.ID_OK:
+            return
+
+        new_aliases = dialog.GetValue()
+        filtered_aliases = jam_tools.filter_aliases(new_aliases).split()
+        track_obj.aliases = filtered_aliases
+        self.track_list.RefreshIndex(self.selected_track, track_obj)
+
+        try:
+            with open(os.path.join(self.audio_dir, 'aliases.json')) as f:
+                aliases_json = json.load(f)
+        except (FileNotFoundError, IOError):
+            open(os.path.join(self.audio_dir, 'aliases.json'), 'w').close()
+            aliases_json = {}
+
+        aliases_json[track_obj.name] = filtered_aliases
+
+        with open(os.path.join(self.audio_dir, 'aliases.json'), 'w') as f:
+            json.dump(aliases_json, f, sort_keys=True)
+
 
     def settings(self, event):
         # type: (int) -> None
@@ -188,10 +228,7 @@ class SetupDialog(wx.Dialog):
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
         game_path_text = wx.StaticText(self, label="Path to game (e.g. steamapps/common/Team Fortress 2/tf2)")
-        if not config.steam_path:
-            self.game_path.SetInitialDirectory(get_steam_path())
-        else:
-            self.game_path.SetPath(config.steam_path)
+        self.game_path.SetInitialDirectory(get_steam_path())
 
         self.game_rate = wx.TextCtrl(self, validator=IntegerValidator())
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
@@ -337,11 +374,8 @@ def start_logger():
     except (OSError, IOError):
         print("Could not create log file.")
 
-    return logger
 
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     start_logger()
     wx_app = wx.App()
     # We call Config() after calling the wx.App() because the Config().load() function shows a wx.MessageBox if failed.
