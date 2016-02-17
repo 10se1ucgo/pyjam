@@ -65,7 +65,7 @@ class Config(object):
                             game['play_key'] = 'F8'
                         if not bindable(game.get('relay_key', '=')):
                             game['relay_key'] = '='
-                    config_json.get('games', [])
+                    return config_json.get('games', [])
         except (FileNotFoundError, IOError):
             self.new()
             return self.load()
