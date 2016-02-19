@@ -18,7 +18,7 @@ import sys
 import os
 import logging
 import json
-from string import digits
+import traceback
 
 import wx  # Tested w/ wxPhoenix 3.0.2
 from ObjectListView import ColumnDefn, ObjectListView
@@ -36,11 +36,22 @@ try:
 except ImportError:
     windows = False
 
+ID_LICENSES = wx.NewId()
 ID_SELECT_GAME = wx.NewId()
-ID_SELECT_PROFILE = wx.NewId()
 ID_START = wx.NewId()
 ID_TRACKS = wx.NewId()
+
 ID_SET_ALIASES = wx.NewId()
+ID_CLEAR_ALIASES = wx.NewId()
+ID_SET_BIND = wx.NewId()
+ID_CLEAR_BIND = wx.NewId()
+ID_CLEAR_ALL = wx.NewId()
+
+ID_SELECT_PROFILE = wx.NewId()
+ID_AUDIO_RATE = wx.NewId()
+ID_RELAY_KEY = wx.NewId()
+ID_PLAY_KEY = wx.NewId()
+
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
 
@@ -54,6 +65,7 @@ class MainFrame(wx.Frame):
         file_menu.Append(wx.ID_SETUP, "&Settings", "Jam Setup")
         help_menu = wx.Menu()
         help_menu.Append(wx.ID_ABOUT, "&About", "About pyjam")
+        help_menu.Append(ID_LICENSES, "&Licenses", "Open source licenses")
 
         menu_bar = wx.MenuBar()
         menu_bar.Append(file_menu, "&File")
@@ -66,6 +78,7 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, panel.settings, id=wx.ID_SETUP)
         self.Bind(wx.EVT_MENU, lambda x: jam_about.about_info(self), id=wx.ID_ABOUT)
+        self.Bind(wx.EVT_MENU, lambda x: jam_about.Licenses(self), id=ID_LICENSES)
         self.Show()
 
 
@@ -74,31 +87,31 @@ class MainPanel(wx.Panel):
         super(MainPanel, self).__init__(parent)
         self.parent_frame = parent
         self.games = config.get_games()
-
+        self.game = None
         while not self.games:
             wx.MessageDialog(parent=None,
-                             message="You have no games profiles set up. Please set one up now.",
+                             message="You have no games profiles set up. Replacing config with default.",
                              caption="Info", style=wx.OK | wx.ICON_INFORMATION).ShowModal()
-            self.settings(None)
+            config.new()
+            config.load()
+            self.games = config.get_games()
+            print(self.games)
 
         self.profile = wx.ComboBox(self, ID_SELECT_GAME, choices=[game.name for game in self.games],
                                    style=wx.CB_READONLY)
         self.profile.SetSelection(0)
-        self.selection = self.profile.GetSelection()
-        self.audio_dir = self.games[self.selection].audio_dir
 
         self.track_list = ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
                                          useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
-            ColumnDefn(title="Title", align="left", width=220, valueGetter="name", isSpaceFilling=True),
-            ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", isSpaceFilling=True),
+            ColumnDefn(title="Title", align="left", width=250, valueGetter="name", minimumWidth=150),
+            ColumnDefn(title="Aliases", align="left", width=300, valueGetter="get_aliases", minimumWidth=200),
+            ColumnDefn(title="Bind", align="left", width=75, valueGetter="get_bind", minimumWidth=50, maximumWidth=120)
         ])
-
         self.track_list.rowFormatter = lambda x, y: x.SetTextColour(wx.RED) if y.get_aliases() == NO_ALIASES else None
-        self.track_list.SetObjects(jam_tools.get_tracks(self.audio_dir))
-
         self.selected_track = None
+        self.game_select(None)
 
         refresh_but = wx.Button(self, wx.ID_REFRESH, "Refresh tracks")
         start_button = wx.Button(self, ID_START, "Start")
@@ -121,20 +134,20 @@ class MainPanel(wx.Panel):
         self.SetSizerAndFit(top_sizer)
 
         self.Bind(wx.EVT_COMBOBOX, self.game_select, id=ID_SELECT_GAME)
-        self.Bind(wx.EVT_BUTTON, lambda x: self.track_list.SetObjects(jam_tools.get_tracks(self.audio_dir)), id=wx.ID_REFRESH)
+        self.Bind(wx.EVT_BUTTON, self.refresh, id=wx.ID_REFRESH)
         self.Bind(wx.EVT_BUTTON, self.start, id=ID_START)
         self.Bind(wx.EVT_BUTTON, self.convert, id=wx.ID_CONVERT)
-        # TODO: Use this for things such as manually adding aliases
-        # TODO: Create a GUI for above. (Context menu>Set aliases>GUI)
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, id=ID_TRACKS)
         self.Bind(wx.EVT_MENU, self.set_aliases, id=ID_SET_ALIASES)
+        self.Bind(wx.EVT_MENU, self.clear_aliases, id=ID_CLEAR_ALIASES)
+        self.Bind(wx.EVT_MENU, self.set_bind, id=ID_SET_BIND)
+        self.Bind(wx.EVT_MENU, self.clear_bind, id=ID_CLEAR_BIND)
+        self.Bind(wx.EVT_MENU, self.clear_all, id=ID_CLEAR_ALL)
 
     def game_select(self, event):
         # type: (int) -> None
-        self.selection = self.profile.GetSelection()
-        self.game = self.games[self.selection]
-        self.audio_dir = self.game.audio_dir
-        self.track_list.SetObjects(jam_tools.get_tracks(self.audio_dir))
+        self.game = self.games[self.profile.GetSelection()]
+        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
 
     def start(self, event):
         # type: (int) -> None
@@ -142,9 +155,15 @@ class MainPanel(wx.Panel):
         # for track in self.track_list.GetObjects():
         #     logger.info("{}, {}, {}".format(track.name, track.aliases, track.path))
         tracks = self.track_list.GetObjects()
+        config_path = self.game.config_path
         play_key = self.game.play_key
-        relay_key = self.game.play_key
-        jam_tools.write_src_config(None, tracks, play_key, relay_key)
+        relay_key = self.game.relay_key
+        use_aliases = self.game.use_aliases
+        jam_tools.write_src_config(config_path, tracks, play_key, relay_key, use_aliases)
+
+    def refresh(self, event):
+        tracks = jam_tools.get_tracks(self.game.audio_dir)
+        self.track_list.SetObjects(tracks)
 
     def convert(self, event):
         # type: (int) -> None
@@ -157,12 +176,10 @@ class MainPanel(wx.Panel):
                 ffmpeg.FFmpegDownloader(self, url)
             elif do_download == wx.ID_NO:
                 download_info = ("Please download it and place FFmpeg.exe in your PATH\n"
-                        "or inside the folder pyjam is in. You can download it at:\n\n"
-                        "http://ffmpeg.zeranoe.com/")
+                                 "or inside the folder pyjam is in. You can download it at:\n\n"
+                                 "http://ffmpeg.zeranoe.com/")
 
-                download_info_dialog = wx.MessageDialog(self, download_info, "pyjam").ShowModal()
-                download_info_dialog.Destroy()
-            do_download.Destroy()
+                wx.MessageDialog(self, download_info, "pyjam").ShowModal()
         elif ffmpeg.find() is None:
             wx.MessageDialog(self, "You require FFmpeg to convert audio. Please install it.", "pyjam").ShowModal()
         else:
@@ -173,6 +190,10 @@ class MainPanel(wx.Panel):
         self.selected_track = event.GetIndex()
         context_menu = wx.Menu()
         context_menu.Append(ID_SET_ALIASES, "Set custom aliases")
+        context_menu.Append(ID_CLEAR_ALIASES, "Clear custom aliases")
+        context_menu.Append(ID_SET_BIND, "Set bind")
+        context_menu.Append(ID_CLEAR_BIND, "Clear bind")
+        context_menu.Append(ID_CLEAR_ALL, "Clear EVERYTHING (all tracks)")
         self.PopupMenu(context_menu)
         context_menu.Destroy()
 
@@ -180,26 +201,89 @@ class MainPanel(wx.Panel):
         track_obj = self.track_list.GetObjects()[self.selected_track]
         default_aliases = ' '.join(track_obj.aliases)
         dialog = wx.TextEntryDialog(self, "Enter aliases separated by spaces.", "pyjam", default_aliases)
+        dialog.Center()
         if dialog.ShowModal() != wx.ID_OK:
+            dialog.Destroy()
             return
 
         new_aliases = dialog.GetValue()
+        dialog.Destroy()
         filtered_aliases = jam_tools.filter_aliases(new_aliases).split()
-        track_obj.aliases = filtered_aliases
-        self.track_list.RefreshIndex(self.selected_track, track_obj)
+        self.write_track_data("aliases", filtered_aliases)
+
+    def clear_aliases(self, event):
+        self.write_track_data("aliases", '')
+
+    def set_bind(self, event):
+        dialog = wx.Dialog(self, title="pyjam")
+
+        bind_text = wx.StaticText(dialog, label="Key:")
+        bind_choice = wx.ComboBox(dialog, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
+        ok_button = wx.Button(dialog, label="OK")
+
+        top_sizer = wx.BoxSizer(wx.VERTICAL)
+        key_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        key_sizer.Add(bind_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        key_sizer.Add(bind_choice, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        top_sizer.Add(key_sizer)
+        top_sizer.Add(ok_button, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+
+        dialog.SetSizerAndFit(top_sizer)
+        bind_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override)
+        ok_button.Bind(wx.EVT_BUTTON, lambda x: (self.write_track_data('bind', bind_choice.GetStringSelection()),
+                                                 dialog.Destroy()))
+        dialog.Center()
+        dialog.Show()
+
+    def clear_bind(self, event):
+        self.write_track_data("bind", '')
+
+    def clear_all(self, event):
+        open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
+        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
+
+    def write_track_data(self, key, data):
+        track_obj = self.track_list.GetObjects()[self.selected_track]
 
         try:
-            with open(os.path.join(self.audio_dir, 'aliases.json')) as f:
-                aliases_json = json.load(f)
-        except (FileNotFoundError, IOError):
-            open(os.path.join(self.audio_dir, 'aliases.json'), 'w').close()
-            aliases_json = {}
+            with open(os.path.join(self.game.audio_dir, 'track_data.json')) as f:
+                track_data = json.load(f)
+        except (FileNotFoundError, IOError, ValueError):
+            open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
+            track_data = {}
 
-        aliases_json[track_obj.name] = filtered_aliases
+        # This only really works for binds, because they're strings. Unless somehow your aliases are the exact same.
+        for track, values in track_data.items():
+            try:
+                if key in values and data in values[key]:
+                    del values[key]
+            except TypeError:
+                pass
 
-        with open(os.path.join(self.audio_dir, 'aliases.json'), 'w') as f:
-            json.dump(aliases_json, f, sort_keys=True)
+        if track_obj.name not in track_data:
+            track_data[track_obj.name] = {}
 
+        track_data[track_obj.name][key] = data
+
+        with open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w') as f:
+            json.dump(track_data, f, sort_keys=True)
+
+        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
+
+    def key_choice_override(self, event):
+        converted = jam_tools.bindable(event.GetKeyCode())
+        # If converted gave us a bool, it's already a compatible key
+        if converted is True:
+            event.GetEventObject().SetStringSelection(chr(event.GetKeyCode()))
+            return True
+        # If converted gave us a string, it was converted
+        elif converted:
+            event.GetEventObject().SetStringSelection(converted)
+            return True
+        # Otherwise, it's not compatible and can't be converted.
+        else:
+            return False
 
     def settings(self, event):
         # type: (int) -> None
@@ -207,10 +291,7 @@ class MainPanel(wx.Panel):
         self.games = config.get_games()
         self.profile.Set([game.name for game in self.games])
         self.profile.SetSelection(0)
-        self.selection = self.profile.GetSelection()
-        self.game = self.games[self.selection]
-        self.audio_dir = self.game.audio_dir
-
+        self.game_select(None)
 
 class SetupDialog(wx.Dialog):
     def __init__(self, parent):
@@ -219,22 +300,36 @@ class SetupDialog(wx.Dialog):
         self.games = config.get_games()
         self.profile = wx.ComboBox(self, ID_SELECT_PROFILE, choices=[game.name for game in self.games],
                                    style=wx.CB_READONLY)
-        self.selection = self.profile.GetSelection()
+        self.profile.SetSelection(0)
+        self.game = self.games[self.profile.GetSelection()]
 
-        separator = wx.StaticLine(self, style=wx.LI_HORIZONTAL, size=(self.profile.GetSize()[0], 1))
+        separator = wx.StaticLine(self, style=wx.LI_HORIZONTAL, size=(self.GetSize()[0], 1))
 
         self.prof_name = wx.TextCtrl(self)
-        prof_name_text = wx.StaticText(self, label="Profile name (e.g. Counter-Strike: Source)")
+        prof_name_text = wx.StaticText(self, label="Profile/game name")
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
-        game_path_text = wx.StaticText(self, label="Path to game (e.g. steamapps/common/Team Fortress 2/tf2)")
         self.game_path.SetInitialDirectory(get_steam_path())
+        game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
 
-        self.game_rate = wx.TextCtrl(self, validator=IntegerValidator())
+        self.audio_path = wx.DirPickerCtrl(self, name="Path to audio")
+        self.audio_path.SetInitialDirectory(os.getcwd())
+        audio_path_text = wx.StaticText(self, label="Audio folder for this game")
+
+        self.game_rate = wx.TextCtrl(self, id=ID_AUDIO_RATE)
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
+
+        self.relay_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY, id=ID_RELAY_KEY)
+        relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
+
+        self.play_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY, id=ID_PLAY_KEY)
+        play_text = wx.StaticText(self, label="Play audio key")
+
+        self.aliases_box = wx.CheckBox(self, label="Enable aliases")
 
         save_button = wx.Button(self, wx.ID_SAVE, label="Save Game")
         new_button = wx.Button(self, wx.ID_NEW, label="New Game")
+        remove_button = wx.Button(self, wx.ID_REMOVE, label="Remove Game")
         done_button = wx.Button(self, wx.ID_EXIT, label="Finished")
 
         # Sizer stuff
@@ -245,39 +340,80 @@ class SetupDialog(wx.Dialog):
         top_sizer.Add(profile_sizer, 1, wx.ALL | wx.EXPAND | wx.ALIGN_TOP, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL, 5)
         profile_sizer.Add(self.profile, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 5)
-        profile_sizer.Add(separator, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_LEFT)
+        profile_sizer.Add(separator, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(prof_name_text, 0, wx.ALL ^ wx.BOTTOM ^ wx.LEFT | wx.ALIGN_LEFT, 3)
         profile_sizer.Add(self.prof_name, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT | wx.EXPAND, 5)
-        profile_sizer.Add(prof_name_text, 0, wx.ALL | wx.ALIGN_LEFT)
-        profile_sizer.Add(self.game_path, 0, wx.ALL ^ wx.LEFT ^ wx.RIGHT | wx.ALIGN_LEFT | wx.EXPAND, 5)
-        profile_sizer.Add(game_path_text, 0, wx.BOTTOM | wx.ALIGN_LEFT, 10)
+        profile_sizer.Add(game_path_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(self.game_path, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
+        profile_sizer.Add(audio_path_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(self.audio_path, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
+        profile_sizer.Add(game_rate_text, 0, wx.ALL ^ wx.BOTTOM ^ wx.LEFT | wx.ALIGN_LEFT, 3)
         profile_sizer.Add(self.game_rate, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 5)
-        profile_sizer.Add(game_rate_text, 0, wx.ALL | wx.ALIGN_LEFT)
+        profile_sizer.Add(relay_text, 0, wx.ALL ^ wx.BOTTOM ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(self.relay_choice, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 5)
+        profile_sizer.Add(play_text, 0, wx.ALL ^ wx.BOTTOM ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(self.play_choice, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 5)
+        profile_sizer.Add(self.aliases_box, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 7)
         button_sizer.Add(save_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         button_sizer.Add(new_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        button_sizer.Add(remove_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         button_sizer.Add(done_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
+        # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Reproduced by commenters at:
+        # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind. Probably intentional.
+        self.relay_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, id=ID_RELAY_KEY)
+        self.play_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, id=ID_PLAY_KEY)
+        self.game_rate.Bind(wx.EVT_CHAR, self.audio_rate_int, id=ID_AUDIO_RATE)
         self.Bind(wx.EVT_COMBOBOX, self.update_profile, id=ID_SELECT_PROFILE)
         self.Bind(wx.EVT_BUTTON, self.save, id=wx.ID_SAVE)
         self.Bind(wx.EVT_BUTTON, self.new, id=wx.ID_NEW)
+        self.Bind(wx.EVT_BUTTON, self.remove, id=wx.ID_REMOVE)
         self.Bind(wx.EVT_BUTTON, lambda x: self.Close(), id=wx.ID_EXIT)
         self.SetSizerAndFit(top_sizer)
+        self.update_profile(None)
         self.Center()
-        if not self.games:
-            self.new(None)
         self.ShowModal()
+
+    def key_choice_override(self, event):
+        converted = jam_tools.bindable(event.GetKeyCode())
+        # If converted gave us a bool, it's already a compatible key
+        if converted is True:
+            event.GetEventObject().SetStringSelection(chr(event.GetKeyCode()))
+            return True
+        # If converted gave us a string, it was converted
+        elif converted:
+            event.GetEventObject().SetStringSelection(converted)
+            return True
+        # Otherwise, it's not compatible and can't be converted.
+        else:
+            return False
+
+    def audio_rate_int(self, event):
+        if event.GetKeyCode() < 256:
+            if chr(event.GetKeyCode()).isalpha() or chr(event.GetKeyCode()).isspace():
+                return
+        event.Skip()
 
     def update_profile(self, event):
         # type: (int) -> None
-        self.selection = self.profile.GetSelection()
         self.games = config.get_games()
+        self.game = self.games[self.profile.GetSelection()]
         try:
-            self.prof_name.SetValue(str(self.games[self.selection].name))
-            self.game_path.SetPath(str(self.games[self.selection].config_path))
-            self.game_rate.SetValue(str(self.games[self.selection].audio_rate))
-        except (IndexError, NameError):  # I don't think a TypeError can happen. Now, at least.
+            self.prof_name.SetValue(self.game.name)
+            self.game_path.SetPath(self.game.config_path)
+            self.audio_path.SetPath(self.game.audio_dir)
+            self.audio_path.SetInitialDirectory(os.path.abspath(self.game.audio_dir))
+            self.game_rate.SetValue(self.game.audio_rate)
+            self.relay_choice.SetStringSelection(self.game.relay_key)
+            self.play_choice.SetStringSelection(self.game.play_key)
+            self.aliases_box.SetValue(self.game.use_aliases)
+        except (IndexError, NameError, TypeError):
             self.prof_name.Clear()
             self.game_path.Clear()
+            self.audio_path.Clear()
             self.game_rate.Clear()
+            self.relay_choice.Clear()
+            self.play_choice.Clear()
 
     def new(self, event):
         # type: (int) -> None
@@ -291,56 +427,34 @@ class SetupDialog(wx.Dialog):
         self.profile.Append(name)
         self.games.append(jam_tools.Game(name=name, audio_dir='audio'))
         config.set_games(self.games)
-        self.games = config.get_games()  # Just in case, to keep it in sync.
+        config.save()
         self.profile.SetSelection(self.profile.GetCount() - 1)
         self.update_profile(None)
         logger.info("New game created: {name}".format(name=name))
 
     def save(self, event):
         # type: (int) -> None
-        if self.selection == wx.NOT_FOUND:
-            return wx.MessageBox(message="You must select a game first!", caption="Info", parent=self)
-
-        self.profile.SetString(self.selection, self.prof_name.GetValue())
-        self.games[self.selection].name = self.prof_name.GetValue()
-        self.games[self.selection].config_path = self.game_path.GetPath()
-        self.games[self.selection].audio_rate = self.game_rate.GetValue()
+        self.profile.SetString(self.profile.GetSelection(), self.prof_name.GetValue())
+        self.game.name = self.prof_name.GetValue()
+        self.game.config_path = self.game_path.GetPath()
+        self.game.audio_dir = os.path.relpath(self.audio_path.GetPath())
+        self.game.audio_rate = self.game_rate.GetValue()
+        self.game.relay_key = self.relay_choice.GetStringSelection()
+        self.game.play_key = self.play_choice.GetStringSelection()
         config.set_games(self.games)
         config.save()
+        self.games = config.get_games()  # Just in case, to keep it in sync.
 
-
-class IntegerValidator(wx.Validator):
-    # IntCtrl is broken on Python 3, and Robin Dunn is dead or something. None of the (very good ones, by the way)
-    # pull requests have been pulled for months. So we have to use a validator :(
-    def __init__(self):
-        wx.Validator.__init__(self)
-        self.Bind(wx.EVT_CHAR, self.on_char)
-
-    def Clone(self):
-        return self
-
-    def Validate(self, parent):
-        for x in self.GetWindow().GetValue():
-            if x not in digits:
-                return False
-        else:
-            return True
-
-    # Not doing this results in a popup saying "Could not transfer data to window"
-    def TransferToWindow(self):
-        return True
-
-    def TransferFromWindow(self):
-        return True
-
-    # Filter as user types.
-    def on_char(self, event):
-        if chr(event.GetKeyCode()) in digits:
-            event.Skip()
-            return
-        else:
-            return
-
+    def remove(self, event):
+        name = self.game.name
+        print(self.profile.GetSelection())
+        self.games.pop(self.profile.GetSelection())
+        config.set_games(self.games)
+        config.save()
+        self.profile.Set([game.name for game in self.games])
+        self.profile.SetSelection(0)
+        self.update_profile(None)
+        logger.info("Game removed: {name}".format(name=name))
 
 def get_steam_path():
     # type: () -> str
@@ -351,12 +465,13 @@ def get_steam_path():
         reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
         return winreg.QueryValueEx(reg_key, r'SteamPath')[0]
     except WindowsError:
+        logger.exception("Could not query registry for Steam path")
         return ''
 
 
 def start_logger():
     global logger  # Is this bad practice?
-    logger = logging.getLogger()
+    logger = logging.getLogger('jam')
     logger.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
@@ -372,7 +487,9 @@ def start_logger():
         file_log.setFormatter(formatter)
         logger.addHandler(file_log)
     except (OSError, IOError):
-        print("Could not create log file.")
+        logger.exception("Could not create log file.")
+
+    sys.excepthook = lambda type, value, tb: logger.critical('\n'+''.join(traceback.format_exception(type, value, tb)))
 
 
 if __name__ == '__main__':

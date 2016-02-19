@@ -124,4 +124,4 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
                                                                                                 vol=vol,
                                                                                                 dest=dest))
 
-logger = logging.getLogger('jam')
+logger = logging.getLogger('jam.ffmpeg')

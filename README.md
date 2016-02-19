@@ -10,12 +10,14 @@ It doesn't work yet, by the way!
   - [x] Track list (ObjectListView)
   - [x] Switch between games
   - [x] Allow for custom aliases
-    - [x] GUI for implementing custom aliases 
-    - right click on track>context menu>set aliases
-    - [x] Format for custom aliases 
-    - ```{"song1": ["alias1", "alias2", "etc."], "song2": ["alias1", "alias2", "etc"]}```
+    - [x] GUI for implementing custom ~~aliases~~ track data
+    - right click on track>context menu>set [track data]
+    - [x] Format for custom ~~aliases~~ track data
+    - ```{"song1": {"aliases": ["alias1", "alias2", "etc"], bind="KP_DEL"}}``` etc.
       - [x] Read format
       - [x] Write format
+        - [x] Write custom aliases
+        - [x] Write custom bind
 - [ ] Get the actual playing audio part of the program working
   - [x] Write the initial configs
   - [ ] Watch 'jam_cmd.cfg' for updates and poll for requested song
@@ -24,10 +26,10 @@ It doesn't work yet, by the way!
   - [x] FFmpeg downloader
   - [x] FFmpeg convert command
   - [ ] GUI for accessing converter
-- [ ] Implement a config editor
+- [x] Implement a config editor
   - [x] Base reading and writing
-  - [ ] Support all fields
-  - [ ] Make it pretty.
+  - [x] Support all fields
+  - [x] Make it pretty.
 - [ ] Implement audio downloading?
   - [ ] youtube-dl
   - [ ] GUI for accessing downloader
