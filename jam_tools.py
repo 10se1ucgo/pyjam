@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import sys
 import glob
 import json
 import logging
@@ -25,6 +26,9 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from jam_about import __version__
+
+if sys.version_info[0:2] < (3, 0):
+    FileNotFoundError = OSError
 
 
 class Config(object):
