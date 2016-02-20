@@ -36,22 +36,6 @@ try:
 except ImportError:
     windows = False
 
-ID_LICENSES = wx.NewId()
-ID_SELECT_GAME = wx.NewId()
-ID_START = wx.NewId()
-ID_TRACKS = wx.NewId()
-
-ID_SET_ALIASES = wx.NewId()
-ID_CLEAR_ALIASES = wx.NewId()
-ID_SET_BIND = wx.NewId()
-ID_CLEAR_BIND = wx.NewId()
-ID_CLEAR_ALL = wx.NewId()
-
-ID_SELECT_PROFILE = wx.NewId()
-ID_AUDIO_RATE = wx.NewId()
-ID_RELAY_KEY = wx.NewId()
-ID_PLAY_KEY = wx.NewId()
-
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
 
@@ -62,10 +46,10 @@ class MainFrame(wx.Frame):
         panel = MainPanel(self)
 
         file_menu = wx.Menu()
-        file_menu.Append(wx.ID_SETUP, "&Settings", "Jam Setup")
+        settings = file_menu.Append(wx.ID_SETUP, "&Settings", "pyjam Setup")
         help_menu = wx.Menu()
-        help_menu.Append(wx.ID_ABOUT, "&About", "About pyjam")
-        help_menu.Append(ID_LICENSES, "&Licenses", "Open source licenses")
+        about = help_menu.Append(wx.ID_ABOUT, "&About", "About pyjam")
+        licenses = help_menu.Append(wx.ID_ANY, "&Licenses", "Open source licenses")
 
         menu_bar = wx.MenuBar()
         menu_bar.Append(file_menu, "&File")
@@ -76,9 +60,9 @@ class MainFrame(wx.Frame):
         icon = wx.Icon('pyjam.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
-        self.Bind(wx.EVT_MENU, panel.settings, id=wx.ID_SETUP)
-        self.Bind(wx.EVT_MENU, lambda x: jam_about.about_info(self), id=wx.ID_ABOUT)
-        self.Bind(wx.EVT_MENU, lambda x: jam_about.Licenses(self), id=ID_LICENSES)
+        self.Bind(wx.EVT_MENU, panel.settings, settings)
+        self.Bind(wx.EVT_MENU, lambda x: jam_about.about_info(self), about)
+        self.Bind(wx.EVT_MENU, lambda x: jam_about.Licenses(self), licenses)
         self.Show()
 
 
@@ -97,11 +81,11 @@ class MainPanel(wx.Panel):
             self.games = config.get_games()
             print(self.games)
 
-        self.profile = wx.ComboBox(self, ID_SELECT_GAME, choices=[game.name for game in self.games],
+        self.profile = wx.ComboBox(self, choices=[game.name for game in self.games],
                                    style=wx.CB_READONLY)
         self.profile.SetSelection(0)
 
-        self.track_list = ObjectListView(self, id=ID_TRACKS, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
+        self.track_list = ObjectListView(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
                                          useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
@@ -113,9 +97,9 @@ class MainPanel(wx.Panel):
         self.selected_track = None
         self.game_select(None)
 
-        refresh_but = wx.Button(self, wx.ID_REFRESH, "Refresh tracks")
-        start_button = wx.Button(self, ID_START, "Start")
-        convert_button = wx.Button(self, wx.ID_CONVERT, "Audio converter")
+        refresh_button = wx.Button(self, label="Refresh tracks")
+        start_button = wx.Button(self, label="Start")
+        convert_button = wx.Button(self, label="Audio converter")
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)  # Root sizer
         profile_sizer = wx.BoxSizer(wx.VERTICAL)  # For the profile selection
@@ -124,7 +108,7 @@ class MainPanel(wx.Panel):
 
         profile_sizer.Add(self.profile, 0, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
         olv_sizer.Add(self.track_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
-        button_sizer.Add(refresh_but, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        button_sizer.Add(refresh_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(start_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(convert_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
 
@@ -133,16 +117,25 @@ class MainPanel(wx.Panel):
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 5)
         self.SetSizerAndFit(top_sizer)
 
-        self.Bind(wx.EVT_COMBOBOX, self.game_select, id=ID_SELECT_GAME)
-        self.Bind(wx.EVT_BUTTON, self.refresh, id=wx.ID_REFRESH)
-        self.Bind(wx.EVT_BUTTON, self.start, id=ID_START)
-        self.Bind(wx.EVT_BUTTON, self.convert, id=wx.ID_CONVERT)
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, id=ID_TRACKS)
-        self.Bind(wx.EVT_MENU, self.set_aliases, id=ID_SET_ALIASES)
-        self.Bind(wx.EVT_MENU, self.clear_aliases, id=ID_CLEAR_ALIASES)
-        self.Bind(wx.EVT_MENU, self.set_bind, id=ID_SET_BIND)
-        self.Bind(wx.EVT_MENU, self.clear_bind, id=ID_CLEAR_BIND)
-        self.Bind(wx.EVT_MENU, self.clear_all, id=ID_CLEAR_ALL)
+        # Context menu
+        self.context_menu = wx.Menu()
+        set_aliases = self.context_menu.Append(wx.ID_ANY, "Set custom aliases")
+        clear_aliases = self.context_menu.Append(wx.ID_ANY, "Clear custom aliases")
+        set_bind = self.context_menu.Append(wx.ID_ANY, "Set bind")
+        clear_bind = self.context_menu.Append(wx.ID_ANY, "Clear bind")
+        clear_all = self.context_menu.Append(wx.ID_CLEAR, "Clear EVERYTHING (all tracks)")
+
+        self.Bind(wx.EVT_COMBOBOX, self.game_select, self.profile)
+        self.Bind(wx.EVT_BUTTON, self.refresh, refresh_button)
+        self.Bind(wx.EVT_BUTTON, self.start, start_button)
+        self.Bind(wx.EVT_BUTTON, self.convert, convert_button)
+
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, self.track_list)
+        self.Bind(wx.EVT_MENU, self.set_aliases, set_aliases)
+        self.Bind(wx.EVT_MENU, self.clear_aliases, clear_aliases)
+        self.Bind(wx.EVT_MENU, self.set_bind, set_bind)
+        self.Bind(wx.EVT_MENU, self.clear_bind, clear_bind)
+        self.Bind(wx.EVT_MENU, self.clear_all, clear_all)
 
     def game_select(self, event):
         # type: (int) -> None
@@ -188,14 +181,7 @@ class MainPanel(wx.Panel):
 
     def list_right_click(self, event):
         self.selected_track = event.GetIndex()
-        context_menu = wx.Menu()
-        context_menu.Append(ID_SET_ALIASES, "Set custom aliases")
-        context_menu.Append(ID_CLEAR_ALIASES, "Clear custom aliases")
-        context_menu.Append(ID_SET_BIND, "Set bind")
-        context_menu.Append(ID_CLEAR_BIND, "Clear bind")
-        context_menu.Append(ID_CLEAR_ALL, "Clear EVERYTHING (all tracks)")
-        self.PopupMenu(context_menu)
-        context_menu.Destroy()
+        self.PopupMenu(self.context_menu)
 
     def set_aliases(self, event):
         track_obj = self.track_list.GetObjects()[self.selected_track]
@@ -219,20 +205,25 @@ class MainPanel(wx.Panel):
 
         bind_text = wx.StaticText(dialog, label="Key:")
         bind_choice = wx.ComboBox(dialog, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
-        ok_button = wx.Button(dialog, label="OK")
+        ok_button = wx.Button(dialog, id=wx.ID_OK, label="OK")
+        cancel_button = wx.Button(dialog, id=wx.ID_CANCEL, label="Cancel")
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         key_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer = wx.StdDialogButtonSizer()
 
         key_sizer.Add(bind_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         key_sizer.Add(bind_choice, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        button_sizer.AddButton(ok_button) # , 0, wx.ALL | wx.ALIGN_CENTER, 5
+        button_sizer.AddButton(cancel_button)
+        button_sizer.Realize()
         top_sizer.Add(key_sizer)
-        top_sizer.Add(ok_button, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+
 
         dialog.SetSizerAndFit(top_sizer)
         bind_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override)
-        ok_button.Bind(wx.EVT_BUTTON, lambda x: (self.write_track_data('bind', bind_choice.GetStringSelection()),
-                                                 dialog.Destroy()))
+        ok_button.Bind(wx.EVT_BUTTON, lambda x: (self.write_track_data('bind', bind_choice.GetStringSelection()), x.Skip()))
         dialog.Center()
         dialog.Show()
 
@@ -298,8 +289,7 @@ class SetupDialog(wx.Dialog):
         wx.Dialog.__init__(self, parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         self.games = config.get_games()
-        self.profile = wx.ComboBox(self, ID_SELECT_PROFILE, choices=[game.name for game in self.games],
-                                   style=wx.CB_READONLY)
+        self.profile = wx.ComboBox(self, choices=[game.name for game in self.games], style=wx.CB_READONLY)
         self.profile.SetSelection(0)
         self.game = self.games[self.profile.GetSelection()]
 
@@ -316,13 +306,13 @@ class SetupDialog(wx.Dialog):
         self.audio_path.SetInitialDirectory(os.getcwd())
         audio_path_text = wx.StaticText(self, label="Audio folder for this game")
 
-        self.game_rate = wx.TextCtrl(self, id=ID_AUDIO_RATE)
+        self.game_rate = wx.TextCtrl(self)
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
-        self.relay_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY, id=ID_RELAY_KEY)
+        self.relay_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
 
-        self.play_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY, id=ID_PLAY_KEY)
+        self.play_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
         play_text = wx.StaticText(self, label="Play audio key")
 
         self.aliases_box = wx.CheckBox(self, label="Enable aliases")
@@ -330,7 +320,6 @@ class SetupDialog(wx.Dialog):
         save_button = wx.Button(self, wx.ID_SAVE, label="Save Game")
         new_button = wx.Button(self, wx.ID_NEW, label="New Game")
         remove_button = wx.Button(self, wx.ID_REMOVE, label="Remove Game")
-        done_button = wx.Button(self, wx.ID_EXIT, label="Finished")
 
         # Sizer stuff
         top_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -357,18 +346,16 @@ class SetupDialog(wx.Dialog):
         button_sizer.Add(save_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         button_sizer.Add(new_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         button_sizer.Add(remove_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
-        button_sizer.Add(done_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Reproduced by commenters at:
         # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind. Probably intentional.
-        self.relay_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, id=ID_RELAY_KEY)
-        self.play_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, id=ID_PLAY_KEY)
-        self.game_rate.Bind(wx.EVT_CHAR, self.audio_rate_int, id=ID_AUDIO_RATE)
-        self.Bind(wx.EVT_COMBOBOX, self.update_profile, id=ID_SELECT_PROFILE)
+        self.relay_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, self.relay_choice)
+        self.play_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override, self.play_choice)
+        self.game_rate.Bind(wx.EVT_CHAR, self.audio_rate_int, self.game_rate)
+        self.Bind(wx.EVT_COMBOBOX, self.update_profile, self.profile)
         self.Bind(wx.EVT_BUTTON, self.save, id=wx.ID_SAVE)
         self.Bind(wx.EVT_BUTTON, self.new, id=wx.ID_NEW)
         self.Bind(wx.EVT_BUTTON, self.remove, id=wx.ID_REMOVE)
-        self.Bind(wx.EVT_BUTTON, lambda x: self.Close(), id=wx.ID_EXIT)
         self.SetSizerAndFit(top_sizer)
         self.update_profile(None)
         self.Center()
@@ -455,6 +442,7 @@ class SetupDialog(wx.Dialog):
         self.profile.SetSelection(0)
         self.update_profile(None)
         logger.info("Game removed: {name}".format(name=name))
+
 
 def get_steam_path():
     # type: () -> str

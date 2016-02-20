@@ -1,9 +1,17 @@
 # pyjam
 ![header image](http://i.imgur.com/ic7toeV.png)
 
-An opensource, cross-platform audio player for Source and GoldSrc engine based games, written in Python
+pyjam is (or will be) an open source, cross-platform audio player for Source and GoldSrc engine based games, written in 
+Python
 
 It doesn't work yet, by the way!
+
+# REQUIREMENTS
+* Tested on Python 2.7 and 3.5
+* wxPython Phoenix (Tested with 3.0.2)
+* ObjectListView
+* watchdog
+* shutilwhich (Only for <Python 3.3)
 
 # TODO
 - [x] Base UI stuff
@@ -52,3 +60,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ```
+
+# THANKS
+Thanks to Dx724 for the wonderful icon.

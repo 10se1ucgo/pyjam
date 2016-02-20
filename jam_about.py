@@ -46,6 +46,8 @@ def about_info(parent):
     about_pg.SetDescription("An opensource, cross-platform audio player for Source and GoldSrc engine based games.")
     about_pg.SetWebSite("https://github.com/10se1ucgo/pyjam", "GitHub repo")
     about_pg.AddDeveloper("10se1ucgo")
+    about_pg.AddDeveloper("Dx724")
+    about_pg.AddArtist("Dx724")
     about_pg.SetLicense(license_text)
     wx.adv.AboutBox(about_pg, parent)
 
@@ -156,14 +158,14 @@ class Licenses(wx.Dialog):
         seven_text.SetFont(mono_font)
 
         ffmpeg = wx.StaticText(self.scrolled_panel, label=("pyjam uses FFmpeg in binary form. A note and "
-                                                           "its license is below."))
+                                                           "license info is below."))
         ffmpeg_info = """
     NOTE
     ----
 
-    FFmpeg is downloaded upon the user's request (not bundled due to size).
-    You can download it as well as its source from https://ffmpeg.zeranoe.com/
-    These builds are licensed under the GNU GPL 3.0
+    FFmpeg <https://ffmpeg.org> is downloaded upon the user's request (not bundled due to size).
+    You can download binaries, including source and instructions, from https://ffmpeg.zeranoe.com/
+    Builds from https://ffmpeg.zeranoe.com/ are licensed under the GNU GPL 3.0
 
     GNU GPL information
     -------------------
