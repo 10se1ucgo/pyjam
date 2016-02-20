@@ -36,6 +36,9 @@ try:
 except ImportError:
     windows = False
 
+if sys.version_info[0:2] < (3, 0):
+    FileNotFoundError = OSError
+
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
 
