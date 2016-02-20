@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import os
-import sys
 import glob
 import json
 import logging
@@ -26,9 +25,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from jam_about import __version__
-
-if sys.version_info[0:2] < (3, 0):
-    FileNotFoundError = OSError
 
 
 class Config(object):
@@ -319,3 +315,9 @@ wx_keys = {wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", w
            wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"}
 
 logger = logging.getLogger('jam.tools')
+
+# If on Python 2, FileNotFoundError should be created to prevent errors.
+try:
+    FileNotFoundError  # This will throw a NameError if the user is using Python 2.
+except NameError:
+    FileNotFoundError = None

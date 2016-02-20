@@ -485,6 +485,11 @@ def start_logger():
 
 if __name__ == '__main__':
     start_logger()
+    # If on Python 2, FileNotFoundError should be created to prevent errors.
+    try:
+        FileNotFoundError  # This will throw a NameError if the user is using Python 2.
+    except NameError:
+        FileNotFoundError = None
     wx_app = wx.App()
     # We call Config() after calling the wx.App() because the Config().load() function shows a wx.MessageBox if failed.
     config = jam_tools.Config('jamconfig.json')
