@@ -26,6 +26,12 @@ from watchdog.events import FileSystemEventHandler
 
 from jam_about import __version__
 
+# If on Python 2, FileNotFoundError should be created to prevent errors.
+try:
+    FileNotFoundError  # This will throw a NameError if the user is using Python 2.
+except NameError:
+    FileNotFoundError = None
+
 
 class Config(object):
     def __init__(self, config_file):
@@ -179,7 +185,7 @@ def get_tracks(audio_path):
             custom_aliases = track_data[name].get('aliases')
             custom_bind = track_data[name].get('bind')
             if custom_aliases:
-                aliases = [filter_aliases(str(x)) for x in custom_aliases if x not in black_list and x not in whitespace]
+                aliases = [filter_aliases(x) for x in custom_aliases if x not in black_list and x not in whitespace]
             else:
                 aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
 
@@ -315,9 +321,3 @@ wx_keys = {wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", w
            wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"}
 
 logger = logging.getLogger('jam.tools')
-
-# If on Python 2, FileNotFoundError should be created to prevent errors.
-try:
-    FileNotFoundError  # This will throw a NameError if the user is using Python 2.
-except NameError:
-    FileNotFoundError = None

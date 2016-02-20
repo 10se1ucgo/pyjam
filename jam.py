@@ -36,8 +36,11 @@ try:
 except ImportError:
     windows = False
 
-if sys.version_info[0:2] < (3, 0):
-    FileNotFoundError = OSError
+# If on Python 2, FileNotFoundError should be created to prevent errors.
+try:
+    FileNotFoundError  # This will throw a NameError if the user is using Python 2.
+except NameError:
+    FileNotFoundError = None
 
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
@@ -217,12 +220,11 @@ class MainPanel(wx.Panel):
 
         key_sizer.Add(bind_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         key_sizer.Add(bind_choice, 0, wx.ALL | wx.ALIGN_LEFT, 5)
-        button_sizer.AddButton(ok_button) # , 0, wx.ALL | wx.ALIGN_CENTER, 5
+        button_sizer.AddButton(ok_button)
         button_sizer.AddButton(cancel_button)
         button_sizer.Realize()
         top_sizer.Add(key_sizer)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-
 
         dialog.SetSizerAndFit(top_sizer)
         bind_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override)
@@ -485,11 +487,6 @@ def start_logger():
 
 if __name__ == '__main__':
     start_logger()
-    # If on Python 2, FileNotFoundError should be created to prevent errors.
-    try:
-        FileNotFoundError  # This will throw a NameError if the user is using Python 2.
-    except NameError:
-        FileNotFoundError = None
     wx_app = wx.App()
     # We call Config() after calling the wx.App() because the Config().load() function shows a wx.MessageBox if failed.
     config = jam_tools.Config('jamconfig.json')
