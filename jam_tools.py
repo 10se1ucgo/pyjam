@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import shutil
+import traceback
 import glob
 import json
 import logging
@@ -26,30 +28,44 @@ from watchdog.events import FileSystemEventHandler
 
 from jam_about import __version__
 
+try:
+    try:
+        import _winreg as winreg
+    except ImportError:
+        import winreg
+    windows = True
+except ImportError:
+    windows = False
+
+
 # If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
 except NameError:
-    FileNotFoundError = None
+    FileNotFoundError = OSError
 
 
 class Config(object):
     def __init__(self, config_file):
         self.config_file = config_file
+        self.steam_path = ''
         self.games = []
         self.load()
 
     def new(self):
         # this is ugly
+        steam = get_steam_path()
         default = {'games':
                    [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': '22050',
                      'name': 'Counter-Strike: Global Offensive',
-                     'config_path': 'C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/csgo',
+                     'mod_path':
+                     os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')),
                      'play_key': 'F8', 'relay_key': '='},
                     {'audio_dir': 'audio/css', 'use_aliases': True, 'audio_rate': '11025',
                      'name': 'Counter-Strike: Source',
-                     'config_path': 'C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Source/css',
-                     'play_key': 'F8', 'relay_key': '='}]}
+                     'mod_path': os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Source/css')),
+                     'play_key': 'F8', 'relay_key': '='}],
+                   'steam_path': steam}
 
         with open(self.config_file, 'w') as f:
             json.dump(default, f, indent=4, sort_keys=True)
@@ -73,6 +89,7 @@ class Config(object):
                             game['play_key'] = 'F8'
                         if not bindable(game.get('relay_key', '=')):
                             game['relay_key'] = '='
+                    self.steam_path = config_json.get('steam_path', os.curdir)
                     self.games = config_json.get('games', [])
         except (FileNotFoundError, IOError):
             self.new()
@@ -90,7 +107,7 @@ class Config(object):
         # type: () -> list
         # ugly as sin
         return [Game(os.path.normpath(game.get('audio_dir', os.curdir)), game.get('audio_rate', 11025),
-                     os.path.normpath(game.get('config_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
+                     os.path.normpath(game.get('mod_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
                      game.get('relay_key', '='), game.get('use_aliases', True)) for game in self.games]
 
     def set_games(self, new_games):
@@ -126,11 +143,11 @@ class Track(object):
 
 
 class Game(object):
-    def __init__(self, audio_dir=os.curdir, audio_rate='11025', config_path=os.curdir,
+    def __init__(self, audio_dir=os.curdir, audio_rate='11025', mod_path=os.curdir,
                  name=None, play_key='F8', relay_key='=', use_aliases=True):
         self.audio_dir = audio_dir
         self.audio_rate = audio_rate
-        self.config_path = config_path
+        self.mod_path = mod_path
         self.name = name
         self.play_key = play_key
         self.relay_key = relay_key
@@ -140,22 +157,141 @@ class Game(object):
         return "{c}(name:{name}, rate:{rate}, path:{path})".format(c=self.__class__,
                                                                    name=self.name,
                                                                    rate=self.audio_rate,
-                                                                   path=self.config_path)
+                                                                   path=self.mod_path)
 
     def __str__(self):
         return "Source Engine Game: {name}".format(name=self.name)
 
+class Jam(object):
+    def __init__(self, steam_path, game_class, tracks):
+        self.steam_path = steam_path
+        self.game = game_class
+        self.tracks = tracks
+        self.user_data = os.path.normpath(os.path.join(self.steam_path, 'userdata'))
+        self.voice = os.path.normpath(os.path.join(self.game.mod_path, os.path.join(os.path.pardir, 'voice_input.wav')))
+        self.observer = JamObserver()
+        self.event_handler = JamHandler(self)
 
-class FileWatcherHandler(FileSystemEventHandler):
+    def start(self):
+        self.observer.schedule(self.event_handler, self.user_data, recursive=True)
+        self.observer.start()
+        write_configs(self.game.mod_path, self.tracks, self.game.play_key, self.game.relay_key, self.game.use_aliases)
+
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), 'a') as cfg:
+            cfg.write('\nexec jam\n')
+
+    def stop(self):
+        self.observer.stop()
+        self.observer.join()
+
+        try:
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam.cfg")))
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_la.cfg")))
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_curtrack.cfg")))
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_saycurtrack.cfg")))
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, self.voice)))
+        except (FileNotFoundError, IOError):
+            logging.exception("Could not remove some files:")
+
+    def load_song(self, path):
+        song_id = self.poll_song(path)
+        try:
+            track = self.tracks[song_id]
+        except IndexError:
+            return
+
+        shutil.copy(track.path, self.voice)
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_curtrack.cfg")), 'w') as cfg:
+            cfg.write('echo "pyjam :: Song :: {name}"\n'.format(name=track.name))
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_saycurtrack.cfg")), 'w') as cfg:
+            cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
+
+    def poll_song(self, path):
+        song = None
+        with open(path) as cfg:
+            for line in cfg:
+                # Get rid of the leading/trailing spaces.
+                line = line.strip()
+                # Get rid of quotes
+                line = line.replace('"', '').replace("'", '')
+                line = line.split()
+                if line[0] == 'bind' and line[1] == self.game.relay_key:
+                    try:
+                        song = int(line[2])
+                        break
+                    except ValueError:
+                        pass
+        return song
+
+
+class JamHandler(FileSystemEventHandler):
+    def __init__(self, calling_class):
+        super(JamHandler, self).__init__()
+        self.calling = calling_class
+
     def on_modified(self, event):
-        print(event.src_path)
+        if os.path.basename(event.src_path) == "jam_cmd.cfg":
+            self.calling.load_song(event.src_path)
 
 
-class FileWatcher(Observer):
-    def __init__(self, path):
-        super(FileWatcher, self).__init__()
-        event_handler = FileWatcherHandler()
-        self.schedule(event_handler, path)
+class JamObserver(Observer):
+    def run(self):
+        try:
+            super(JamObserver, self).run()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            error_message = ''.join(traceback.format_exc())
+            error_dialog = wx.MessageDialog(parent=None,
+                                            message="An error has occured\n" + error_message,
+                                            caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
+            error_dialog.ShowModal()
+            error_dialog.Destroy()
+            logger.critical(error_message)
+            raise
+
+
+def write_configs(path, tracks, play_key, relay_key, use_aliases=True):
+    # TODO: Finish this.
+    # /!\ Use double-quotes (") for Source engine configs! /!\
+    # Lazy debugging stuff:
+    # logger.write = lambda x: logging.info(x)
+    # cfg = logger
+    print(path)
+    with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w') as cfg:
+        cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
+        cfg.write('alias jam_play jam_on\n')
+        cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
+        cfg.write('alias jam_off "voice_inputfromfile 0; voice_loopback 0; -voicerecord; alias jam_play jam_on"\n')
+        cfg.write('alias jam_writecmd "host_writeconfig jam_cmd"\n')
+        cfg.write('alias jam_listaudio "exec jam_la"\n')
+        cfg.write('alias jam_la jam_listaudio\n')
+        cfg.write('alias la jam_listaudio\n')
+        cfg.write('alias jam_saytrack "exec jam_saycurtrack"\n')
+        cfg.write('alias jam_say jam_saytrack\n')
+        cfg.write('alias jam_echotrack "exec jam_curtrack"\n')
+        cfg.write('alias jam_track jam_echotrack\n')
+        for x, track in enumerate(tracks):
+            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'.format(x=x,
+                                                                                                 relay=relay_key,
+                                                                                                 name=track.name))
+            if use_aliases:
+                for alias in track.aliases:
+                    cfg.write('alias {alias} {x}\n'.format(alias=alias, x=x))
+            if track.bind:
+                cfg.write('bind {bind} {x}'.format(bind=track.bind, x=x))
+        cfg.write('voice_enable 1; voice_modenable 1\n')
+        cfg.write('voice_forcemicrecord 0\n')
+        cfg.write('voice_fadeouttime 0.0\n')
+        cfg.write('con_enable 1; showconsole\n')
+        cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w') as cfg:
+        for x, track in enumerate(tracks):
+            cfg.write('echo {x}. {name}. Aliases: {aliases}\n'.format(x=x, name=track.name, aliases=track.aliases))
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w') as cfg:
+        cfg.write('echo "pyjam :: No song loaded"\n')
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w') as cfg:
+        cfg.write('say "pyjam :: No song loaded"\n')
 
 
 def get_tracks(audio_path):
@@ -212,6 +348,19 @@ def filter_aliases(alias_or_name):
     return filtered_name
 
 
+def get_steam_path():
+    # type: () -> str
+    if not windows:
+        return os.curdir
+
+    try:
+        reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
+        return winreg.QueryValueEx(reg_key, r'SteamPath')[0]
+    except WindowsError:
+        logger.exception("Could not query registry for Steam path")
+        return ''
+
+
 def bindable(key):
     # type: (str) -> bool
 
@@ -226,71 +375,6 @@ def bindable(key):
             return False
     else:
         return False
-
-
-def start_jam(config, tracks, play_key, relay_key):
-    raise NotImplementedError
-
-
-def poll_song(relay_key):
-    # type: (str) -> int
-    song = None
-    with open('config.cfg') as cfg:
-        for line in cfg:
-            # Get rid of the leading/trailing spaces.
-            line = line.strip()
-            # Get rid of quotes
-            line = line.replace('"', '').replace("'", '')
-            line = line.split()
-            if line[0] == 'bind' and line[1] == relay_key:
-                try:
-                    song = int(line[2])
-                    break
-                except ValueError:
-                    pass
-    return song
-
-
-def load_song():
-    song_id = poll_song('=')
-
-
-def write_src_config(config, tracks, play_key, relay_key, use_aliases=True):
-    # TODO: Finish this.
-    # /!\ Use double-quotes (") for Source engine configs! /!\
-    # Lazy debugging stuff:
-    # logger.write = lambda x: logging.info(x)
-    # cfg = logger
-    with open(os.path.join(config, "cfg/jam.cfg"), 'w') as cfg:
-        cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
-        cfg.write('alias jam_play jam_on\n')
-        cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
-        cfg.write('alias jam_off "voice_inputfromfile 0; voice_loopback 0; -voicerecord; alias jam_play jam on"\n')
-        cfg.write('alias jam_writecmd "host_writecfg jam_cmd"\n')
-        cfg.write('alias jam_listaudio "exec jam_la.cfg"\n')
-        cfg.write('alias la jam_listaudio\n')
-        # for x in range(len(tracks)): I forgot about enumerate... I'm an idiot.
-        for x, track in enumerate(tracks):
-            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'.format(x=x,
-                                                                                                 relay=relay_key,
-                                                                                                 name=track.name))
-            if use_aliases:
-                for alias in track.aliases:
-                    cfg.write('alias {alias} {x}\n'.format(alias=alias, x=x))
-            if track.bind:
-                cfg.write('bind {bind} {x}'.format(bind=track.bind, x=x))
-        cfg.write('voice_enable 1; voice_modenable 1\n')
-        cfg.write('voice_forcemicrecord 0\n')
-        cfg.write('voice_fadeouttime 0.0\n')
-        cfg.write('con_enable 1; showconsole\n')
-        cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
-    with open(os.path.join(config, "cfg/jam_la.cfg"), 'w') as cfg:
-        for x, track in enumerate(tracks):
-            cfg.write('echo {x}. {name}. Aliases: {aliases}\n'.format(x=x, name=track.name, aliases=track.aliases))
-    with open(os.path.join(config, "cfg/jam_curtrack.cfg"), 'w') as cfg:
-        cfg.write('echo "pyjam :: No song loaded"\n')
-    with open(os.path.join(config, "cfg/jam_saycurtrack.cfg"), 'w') as cfg:
-        cfg.write('say "pyjam :: No song loaded"\n')
 
 # Special characters taken from the VDC wiki.
 allowed_keys = [',', '.', "'", '/', '[', ']', '\\', '-', '=', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',

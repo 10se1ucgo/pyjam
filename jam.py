@@ -27,20 +27,11 @@ import ffmpeg
 import jam_tools
 import jam_about
 
-try:
-    if sys.version_info[0:2] >= (3, 0):
-        import winreg
-    else:
-        import _winreg as winreg
-    windows = True
-except ImportError:
-    windows = False
-
 # If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
 except NameError:
-    FileNotFoundError = None
+    FileNotFoundError = OSError
 
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
@@ -78,6 +69,7 @@ class MainPanel(wx.Panel):
         self.parent_frame = parent
         self.games = config.get_games()
         self.game = None
+        self.game_watcher = None
         while not self.games:
             wx.MessageDialog(parent=None,
                              message="You have no games profiles set up. Replacing config with default.",
@@ -104,7 +96,7 @@ class MainPanel(wx.Panel):
         self.game_select(None)
 
         refresh_button = wx.Button(self, label="Refresh tracks")
-        start_button = wx.Button(self, label="Start")
+        self.start_stop_button = wx.Button(self, label="Start")
         convert_button = wx.Button(self, label="Audio converter")
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)  # Root sizer
@@ -115,7 +107,7 @@ class MainPanel(wx.Panel):
         profile_sizer.Add(self.profile, 0, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
         olv_sizer.Add(self.track_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
         button_sizer.Add(refresh_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
-        button_sizer.Add(start_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        button_sizer.Add(self.start_stop_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(convert_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
 
         top_sizer.Add(profile_sizer, 0, wx.ALL | wx.EXPAND, 5)
@@ -133,7 +125,7 @@ class MainPanel(wx.Panel):
 
         self.Bind(wx.EVT_COMBOBOX, self.game_select, self.profile)
         self.Bind(wx.EVT_BUTTON, self.refresh, refresh_button)
-        self.Bind(wx.EVT_BUTTON, self.start, start_button)
+        self.Bind(wx.EVT_BUTTON, self.start_stop, self.start_stop_button)
         self.Bind(wx.EVT_BUTTON, self.convert, convert_button)
 
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, self.track_list)
@@ -144,28 +136,31 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.clear_all, clear_all)
 
     def game_select(self, event):
-        # type: (int) -> None
         self.game = self.games[self.profile.GetSelection()]
         self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
 
-    def start(self, event):
-        # type: (int) -> None
-        # logger.info(len(self.track_list.GetObjects()))
-        # for track in self.track_list.GetObjects():
-        #     logger.info("{}, {}, {}".format(track.name, track.aliases, track.path))
-        tracks = self.track_list.GetObjects()
-        config_path = self.game.config_path
-        play_key = self.game.play_key
-        relay_key = self.game.relay_key
-        use_aliases = self.game.use_aliases
-        jam_tools.write_src_config(config_path, tracks, play_key, relay_key, use_aliases)
+    def start_stop(self, event):
+        if not self.game_watcher:
+            self.start_stop_button.SetLabel("Starting...")
+            self.start_stop_button.Disable()
+            self.game_watcher = jam_tools.Jam(config.steam_path, self.game, self.track_list.GetObjects())
+            self.game_watcher.start()
+            self.start_stop_button.Enable()
+            self.start_stop_button.SetLabel("Stop")
+        else:
+            self.start_stop_button.Disable()
+            self.start_stop_button.SetLabel("Stopping...")
+            self.game_watcher.stop()
+            self.game_watcher = None
+            self.start_stop_button.Enable()
+            self.start_stop_button.SetLabel("Start")
+
 
     def refresh(self, event):
         tracks = jam_tools.get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
 
     def convert(self, event):
-        # type: (int) -> None
         if ffmpeg.find() is None and sys.platform == "win32":
             message = ("Couldn't detect FFmpeg in your PATH.\n"
                        "FFmpeg is required for audio conversion. Would you like to download it?")
@@ -211,8 +206,8 @@ class MainPanel(wx.Panel):
 
         bind_text = wx.StaticText(dialog, label="Key:")
         bind_choice = wx.ComboBox(dialog, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
-        ok_button = wx.Button(dialog, id=wx.ID_OK, label="OK")
-        cancel_button = wx.Button(dialog, id=wx.ID_CANCEL, label="Cancel")
+        ok = wx.Button(dialog, id=wx.ID_OK, label="OK")
+        cancel = wx.Button(dialog, id=wx.ID_CANCEL, label="Cancel")
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         key_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -220,15 +215,15 @@ class MainPanel(wx.Panel):
 
         key_sizer.Add(bind_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         key_sizer.Add(bind_choice, 0, wx.ALL | wx.ALIGN_LEFT, 5)
-        button_sizer.AddButton(ok_button)
-        button_sizer.AddButton(cancel_button)
+        button_sizer.AddButton(ok)
+        button_sizer.AddButton(cancel)
         button_sizer.Realize()
         top_sizer.Add(key_sizer)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         dialog.SetSizerAndFit(top_sizer)
         bind_choice.Bind(wx.EVT_KEY_DOWN, self.key_choice_override)
-        ok_button.Bind(wx.EVT_BUTTON, lambda x: (self.write_track_data('bind', bind_choice.GetStringSelection()), x.Skip()))
+        ok.Bind(wx.EVT_BUTTON, lambda x: (self.write_track_data('bind', bind_choice.GetStringSelection()), x.Skip()))
         dialog.Center()
         dialog.Show()
 
@@ -240,6 +235,7 @@ class MainPanel(wx.Panel):
         self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
 
     def write_track_data(self, key, data):
+        # type (str, object) -> None
         track_obj = self.track_list.GetObjects()[self.selected_track]
 
         try:
@@ -282,16 +278,21 @@ class MainPanel(wx.Panel):
             return False
 
     def settings(self, event):
-        # type: (int) -> None
         SetupDialog(self)
         self.games = config.get_games()
         self.profile.Set([game.name for game in self.games])
         self.profile.SetSelection(0)
         self.game_select(None)
 
+
 class SetupDialog(wx.Dialog):
     def __init__(self, parent):
         wx.Dialog.__init__(self, parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+
+        self.steam_path = wx.DirPickerCtrl(self, name="Path to Steam")
+        self.steam_path.SetInitialDirectory(jam_tools.get_steam_path())
+        steam_path_text = wx.StaticText(self, label="Path to Steam (e.g. C:\\Program Files (x86)\\Steam)")
+
 
         self.games = config.get_games()
         self.profile = wx.ComboBox(self, choices=[game.name for game in self.games], style=wx.CB_READONLY)
@@ -304,7 +305,7 @@ class SetupDialog(wx.Dialog):
         prof_name_text = wx.StaticText(self, label="Profile/game name")
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
-        self.game_path.SetInitialDirectory(get_steam_path())
+        self.game_path.SetInitialDirectory(jam_tools.get_steam_path())
         game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
 
         self.audio_path = wx.DirPickerCtrl(self, name="Path to audio")
@@ -333,6 +334,8 @@ class SetupDialog(wx.Dialog):
 
         top_sizer.Add(profile_sizer, 1, wx.ALL | wx.EXPAND | wx.ALIGN_TOP, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        profile_sizer.Add(steam_path_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        profile_sizer.Add(self.steam_path, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
         profile_sizer.Add(self.profile, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 5)
         profile_sizer.Add(separator, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_LEFT, 3)
         profile_sizer.Add(prof_name_text, 0, wx.ALL ^ wx.BOTTOM ^ wx.LEFT | wx.ALIGN_LEFT, 3)
@@ -387,12 +390,12 @@ class SetupDialog(wx.Dialog):
         event.Skip()
 
     def update_profile(self, event):
-        # type: (int) -> None
         self.games = config.get_games()
         self.game = self.games[self.profile.GetSelection()]
         try:
+            self.steam_path.SetPath(config.steam_path)
             self.prof_name.SetValue(self.game.name)
-            self.game_path.SetPath(self.game.config_path)
+            self.game_path.SetPath(self.game.mod_path)
             self.audio_path.SetPath(self.game.audio_dir)
             self.audio_path.SetInitialDirectory(os.path.abspath(self.game.audio_dir))
             self.game_rate.SetValue(self.game.audio_rate)
@@ -426,9 +429,10 @@ class SetupDialog(wx.Dialog):
 
     def save(self, event):
         # type: (int) -> None
+        config.steam_path = self.steam_path.GetPath()
         self.profile.SetString(self.profile.GetSelection(), self.prof_name.GetValue())
         self.game.name = self.prof_name.GetValue()
-        self.game.config_path = self.game_path.GetPath()
+        self.game.mod_path = self.game_path.GetPath()
         self.game.audio_dir = os.path.relpath(self.audio_path.GetPath())
         self.game.audio_rate = self.game_rate.GetValue()
         self.game.relay_key = self.relay_choice.GetStringSelection()
@@ -438,28 +442,23 @@ class SetupDialog(wx.Dialog):
         self.games = config.get_games()  # Just in case, to keep it in sync.
 
     def remove(self, event):
+        if len(self.games) <= 1:
+            message = wx.MessageDialog(parent=self,
+                                       message="You can't remove your only game!", style=wx.OK | wx.ICON_EXCLAMATION)
+            message.ShowModal()
+            message.Destroy()
+            return False
+
         name = self.game.name
-        print(self.profile.GetSelection())
         self.games.pop(self.profile.GetSelection())
         config.set_games(self.games)
         config.save()
+
         self.profile.Set([game.name for game in self.games])
         self.profile.SetSelection(0)
         self.update_profile(None)
+
         logger.info("Game removed: {name}".format(name=name))
-
-
-def get_steam_path():
-    # type: () -> str
-    if not windows:
-        return ''
-
-    try:
-        reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
-        return winreg.QueryValueEx(reg_key, r'SteamPath')[0]
-    except WindowsError:
-        logger.exception("Could not query registry for Steam path")
-        return ''
 
 
 def start_logger():
@@ -480,15 +479,28 @@ def start_logger():
         file_log.setFormatter(formatter)
         logger.addHandler(file_log)
     except (OSError, IOError):
+        error_dialog = wx.MessageDialog(parent=None,
+                                        message="Could not create log file, exceptions will not be recorded!",
+                                        caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
+        error_dialog.ShowModal()
+        error_dialog.Destroy()
         logger.exception("Could not create log file.")
 
-    sys.excepthook = lambda type, value, tb: logger.critical('\n'+''.join(traceback.format_exception(type, value, tb)))
 
+def exception_hook(error, value, trace):
+    error_message = ''.join(traceback.format_exception(error, value, trace))
+    error_dialog = wx.MessageDialog(parent=None,
+                                    message="An error has occured\n" + error_message,
+                                    caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
+    error_dialog.ShowModal()
+    error_dialog.Destroy()
+    logger.critical(error_message)
 
 if __name__ == '__main__':
+    wx_app = wx.App(redirect=0)
+    # We call these after the wx.App because they call some wx Dialogs and what not.
     start_logger()
-    wx_app = wx.App()
-    # We call Config() after calling the wx.App() because the Config().load() function shows a wx.MessageBox if failed.
+    sys.excepthook = exception_hook
     config = jam_tools.Config('jamconfig.json')
     frame = MainFrame()
     wx_app.MainLoop()

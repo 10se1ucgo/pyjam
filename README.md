@@ -7,7 +7,7 @@ Python
 It doesn't work yet, by the way!
 
 # REQUIREMENTS
-* Tested on Python 2.7 and 3.5
+* Tested on 3.5, may work on 2.7+
 * wxPython Phoenix (Tested with 3.0.2)
 * ObjectListView
 * watchdog
@@ -21,23 +21,21 @@ It doesn't work yet, by the way!
     - [x] GUI for implementing custom ~~aliases~~ track data
     - right click on track>context menu>set [track data]
     - [x] Format for custom ~~aliases~~ track data
-    - ```{"song1": {"aliases": ["alias1", "alias2", "etc"], bind="KP_DEL"}}``` etc.
+    - ```{"song1": {"aliases": ["alias1", "alias2", "etc"], bind: "KP_DEL"}}``` etc.
       - [x] Read format
       - [x] Write format
-        - [x] Write custom aliases
-        - [x] Write custom bind
-- [ ] Get the actual playing audio part of the program working
+- [x] Get the actual playing audio part of the program working
   - [x] Write the initial configs
-  - [ ] Watch 'jam_cmd.cfg' for updates and poll for requested song
-  - [ ] Copy requested song to root dir
-- [ ] Implement an audio converter
-  - [x] FFmpeg downloader
-  - [x] FFmpeg convert command
-  - [ ] GUI for accessing converter
+  - [x] Watch 'jam_cmd.cfg' for updates and poll for requested song
+  - [x] Copy requested song to root dir
 - [x] Implement a config editor
   - [x] Base reading and writing
   - [x] Support all fields
   - [x] Make it pretty.
+- [ ] Implement an audio converter
+  - [x] FFmpeg downloader
+  - [x] FFmpeg convert command
+  - [ ] GUI for accessing converter
 - [ ] Implement audio downloading?
   - [ ] youtube-dl
   - [ ] GUI for accessing downloader
