@@ -9,12 +9,11 @@ As of 2/21/16, it works!
 
 REQUIREMENTS
 --
-* Tested on 3.5, may work on 2.7+
+* Tested on CPython 3.5. 2.7+ should work.
 * [wxPython Phoenix](https://github.com/wxWidgets/Phoenix) - GUI
     * Compiling for Python 3.5 is a bit broken. [Patch + a wheel for CPython 3.5 x64 can be found here](https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e)
 * [ObjectListView](https://pypi.python.org/pypi/ObjectListView) - wx.ListCtrl wrapper (much easier to use)
 * [watchdog](https://pypi.python.org/pypi/watchdog) - Cross-platform file system monitoring
-* 
 
 Backwards compatibility
 --
