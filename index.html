@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>pyjam by 10se1ucgo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">pyjam</h1>
+      <h2 class="project-tagline">An open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python</h2>
+      <a href="https://github.com/10se1ucgo/pyjam" class="btn">View on GitHub</a>
+      <a href="https://github.com/10se1ucgo/pyjam/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/10se1ucgo/pyjam/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p>Note: This page is 'placeholder' for now. I'll fill it up with real info later.</p>
+
+<h2>
+<a id="pyjam" class="anchor" href="#pyjam" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>pyjam</h2>
+
+<p><img src="http://i.imgur.com/ic7toeV.png" alt="header image"></p>
+
+<p>pyjam is an open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python</p>
+
+<h2>
+<a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>REQUIREMENTS</h2>
+
+<ul>
+<li>Tested on CPython 3.5. 2.7+ should work.</li>
+<li>
+<a href="https://github.com/wxWidgets/Phoenix">wxPython Phoenix</a> - GUI
+
+<ul>
+<li>Compiling for Python 3.5 is a bit broken. <a href="https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e">Patch + a wheel for CPython 3.5 x64 can be found here</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="https://pypi.python.org/pypi/ObjectListView">ObjectListView</a> - wx.ListCtrl wrapper (much easier to use)</li>
+<li>
+<a href="https://pypi.python.org/pypi/watchdog">watchdog</a> - Cross-platform file system monitoring</li>
+</ul>
+
+<h2>
+<a id="backwards-compatibility" class="anchor" href="#backwards-compatibility" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Backwards compatibility</h2>
+
+<ul>
+<li>
+<a href="https://pypi.python.org/pypi/shutilwhich">shutilwhich</a> - Backport of shutil.which() for Python &lt;3.3</li>
+</ul>
+
+<h2>
+<a id="todo" class="anchor" href="#todo" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>TODO</h2>
+
+<ul>
+<li>[x] Base UI stuff
+
+<ul>
+<li>[x] Track list (ObjectListView)</li>
+<li>[x] Switch between games</li>
+<li>[x] Allow for custom aliases
+
+<ul>
+<li>[x] GUI for implementing custom <del>aliases</del> track data</li>
+<li>right click on track&gt;context menu&gt;set [track data]</li>
+<li>[x] Format for custom <del>aliases</del> track data</li>
+<li>
+<code>{"song1": {"aliases": ["alias1", "alias2", "etc"], bind: "KP_DEL"}}</code> etc.
+
+<ul>
+<li>[x] Read format</li>
+<li>[x] Write format</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>[x] Get the actual playing audio part of the program working
+
+<ul>
+<li>[x] Write the initial configs</li>
+<li>[x] Watch 'jam_cmd.cfg' for updates and poll for requested song</li>
+<li>[x] Copy requested song to root dir</li>
+</ul>
+</li>
+<li>[x] Implement a config editor
+
+<ul>
+<li>[x] Base reading and writing</li>
+<li>[x] Support all fields</li>
+<li>[x] Make it pretty.</li>
+</ul>
+</li>
+<li>[ ] Implement an audio converter
+
+<ul>
+<li>[x] FFmpeg downloader</li>
+<li>[x] FFmpeg convert command</li>
+<li>[ ] GUI for accessing converter</li>
+</ul>
+</li>
+<li>[ ] Implement audio downloading?
+
+<ul>
+<li>[ ] youtube-dl</li>
+<li>[ ] GUI for accessing downloader</li>
+</ul>
+</li>
+</ul>
+
+<h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>LICENSE</h2>
+
+<pre><code>Copyright (C) 10se1ucgo 2016
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+</code></pre>
+
+<h1>
+<a id="thanks" class="anchor" href="#thanks" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>THANKS</h1>
+
+<p>Thanks to Dx724 for the wonderful icon.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/10se1ucgo/pyjam">pyjam</a> is maintained by <a href="https://github.com/10se1ucgo">10se1ucgo</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
