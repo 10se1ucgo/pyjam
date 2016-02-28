@@ -1,5 +1,5 @@
 # Copyright (C) 10se1ucgo 2016
-
+#
 # This file is part of pyjam.
 #
 # pyjam is free software: you can redistribute it and/or modify
@@ -14,26 +14,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
-import sys
+
+# Does this need to be its own file?
 from subprocess import call
 
-if sys.version_info[0:2] < (3, 3):
-    from shutilwhich import which
-else:
+try:
     from shutil import which
+except ImportError:
+    from shutilwhich import which
 
 
 def find():
-    if sys.platform == "win32":
-        return which('7z.exe') or which('7za.exe') or which('bin/7za.exe')
-    else:
-        # I don't know if this works.
-        return which('7z') or which('7za') or which('bin/7za')
+    return which('7z.exe') or which('7za.exe') or which('bin/7za.exe')
 
 
-def extract_single(archive, file, overwrite=True, recurse=True):
-    cmd = "{bin} e".format(bin=find())
-    if overwrite: cmd += " -y"
-    cmd += " {archive} {file}".format(archive=archive, file=file)
-    if recurse: cmd += "  -r"
+def extract_single(archive, file, dest):
+    cmd = "{bin} e -y {archive} -o{dest} {file} -r".format(bin=find(), archive=archive, dest=dest, file=file)
     call(cmd)

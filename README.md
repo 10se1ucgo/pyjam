@@ -39,13 +39,21 @@ TODO
       - [x] Base reading and writing
       - [x] Support all fields
       - [x] Make it pretty.
-- [ ] Implement an audio converter
+- [x] Implement an audio converter
       - [x] FFmpeg downloader
       - [x] FFmpeg convert command
-      - [ ] GUI for accessing converter
+      - [x] GUI for accessing converter
 - [ ] Implement audio downloading?
       - [ ] youtube-dl
       - [ ] GUI for accessing downloader
+
+
+KNOW ISSUES
+--
+
+Config editor doesn't correctly save config on Linux. (Tested on latest version of Linux Mint as of 2/28)
+Workaround: Edit jamconfig.json manually.
+
 
 
 LICENSE

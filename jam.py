@@ -1,5 +1,5 @@
 # Copyright (C) 10se1ucgo 2016
-
+#
 # This file is part of pyjam.
 #
 # pyjam is free software: you can redistribute it and/or modify
@@ -54,7 +54,10 @@ class MainFrame(wx.Frame):
 
         self.SetMenuBar(menu_bar)
 
-        icon = wx.Icon('pyjam.ico', wx.BITMAP_TYPE_ICO)
+        if sys.platform == "win32":
+            icon = wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO)
+        else:
+            icon = wx.Icon('pyjam.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
         self.Bind(wx.EVT_MENU, panel.settings, settings)
@@ -71,13 +74,14 @@ class MainPanel(wx.Panel):
         self.game = None
         self.game_watcher = None
         while not self.games:
-            wx.MessageDialog(parent=None,
-                             message="You have no games profiles set up. Replacing config with default.",
-                             caption="Info", style=wx.OK | wx.ICON_INFORMATION).ShowModal()
+            error = wx.MessageDialog(parent=self,
+                                     message="You have no games profiles set up. Replacing config with default.",
+                                     caption="Info", style=wx.OK | wx.ICON_INFORMATION)
+            error.ShowModal()
+            error.Destroy()
             config.new()
             config.load()
             self.games = config.get_games()
-            print(self.games)
 
         self.profile = wx.ComboBox(self, choices=[game.name for game in self.games],
                                    style=wx.CB_READONLY)
@@ -155,7 +159,6 @@ class MainPanel(wx.Panel):
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Start")
 
-
     def refresh(self, event):
         tracks = jam_tools.get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
@@ -164,21 +167,31 @@ class MainPanel(wx.Panel):
         if ffmpeg.find() is None and sys.platform == "win32":
             message = ("Couldn't detect FFmpeg in your PATH.\n"
                        "FFmpeg is required for audio conversion. Would you like to download it?")
-            do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION).ShowModal()
-            if do_download == wx.ID_YES:
+            do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION)
+
+            if do_download.ShowModal() == wx.ID_YES:
                 url = "http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
                 ffmpeg.FFmpegDownloader(self, url)
-            elif do_download == wx.ID_NO:
+
+            else:
                 download_info = ("Please download it and place FFmpeg.exe in your PATH\n"
-                                 "or inside the folder pyjam is in. You can download it at:\n\n"
+                                 "or inside the /pyjam/bin/ folder. You can download it at:\n\n"
                                  "http://ffmpeg.zeranoe.com/")
 
-                wx.MessageDialog(self, download_info, "pyjam").ShowModal()
+                message = wx.MessageDialog(self, download_info, "pyjam")
+                message.ShowModal()
+                message.Destroy()
+
+            do_download.Destroy()
+
         elif ffmpeg.find() is None:
-            wx.MessageDialog(self, "You require FFmpeg to convert audio. Please install it.", "pyjam").ShowModal()
+            message = wx.MessageDialog(self, "You require FFmpeg to convert audio. Please install it.", "pyjam")
+            message.ShowModal()
+            message.Destroy()
+
         else:
-            # TODO: Implement audio conversion with FFmpeg.
-            ffmpeg.FFmpegConvertDialog(self)
+            ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir)
+            self.game_select(None)
 
     def list_right_click(self, event):
         self.selected_track = event.GetIndex()
@@ -205,7 +218,7 @@ class MainPanel(wx.Panel):
         dialog = wx.Dialog(self, title="pyjam")
 
         bind_text = wx.StaticText(dialog, label="Key:")
-        bind_choice = wx.ComboBox(dialog, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
+        bind_choice = wx.ComboBox(dialog, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
         ok = wx.Button(dialog, id=wx.ID_OK, label="OK")
         cancel = wx.Button(dialog, id=wx.ID_CANCEL, label="Cancel")
 
@@ -315,10 +328,10 @@ class SetupDialog(wx.Dialog):
         self.game_rate = wx.TextCtrl(self)
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
-        self.relay_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
+        self.relay_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
 
-        self.play_choice = wx.ComboBox(self, choices=jam_tools.allowed_keys, style=wx.CB_READONLY)
+        self.play_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
         play_text = wx.StaticText(self, label="Play audio key")
 
         self.aliases_box = wx.CheckBox(self, label="Enable aliases")

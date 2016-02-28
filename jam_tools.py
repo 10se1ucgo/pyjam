@@ -1,5 +1,5 @@
 # Copyright (C) 10se1ucgo 2016
-
+#
 # This file is part of pyjam.
 #
 # pyjam is free software: you can redistribute it and/or modify
@@ -33,9 +33,8 @@ try:
         import _winreg as winreg
     except ImportError:
         import winreg
-    windows = True
 except ImportError:
-    windows = False
+    winreg = False
 
 
 # If on Python 2, FileNotFoundError should be created to prevent errors.
@@ -232,6 +231,8 @@ class JamHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if os.path.basename(event.src_path) == "jam_cmd.cfg":
             self.calling.load_song(event.src_path)
+        elif os.path.basename(event.dest_path) == "jam_cmd.cfg":
+            self.calling.load_song(event.dest_path)
 
 
 class JamObserver(Observer):
@@ -251,13 +252,11 @@ class JamObserver(Observer):
             raise
 
 
-def write_configs(path, tracks, play_key, relay_key, use_aliases=True):
-    # TODO: Finish this.
+def write_configs(path, tracks, play_key, relay_key, use_aliases):
     # /!\ Use double-quotes (") for Source engine configs! /!\
     # Lazy debugging stuff:
     # logger.write = lambda x: logging.info(x)
     # cfg = logger
-    print(path)
     with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
         cfg.write('alias jam_play jam_on\n')
@@ -350,7 +349,7 @@ def filter_aliases(alias_or_name):
 
 def get_steam_path():
     # type: () -> str
-    if not windows:
+    if not winreg:
         return os.curdir
 
     try:
@@ -358,18 +357,18 @@ def get_steam_path():
         return winreg.QueryValueEx(reg_key, r'SteamPath')[0]
     except WindowsError:
         logger.exception("Could not query registry for Steam path")
-        return ''
+        return os.curdir
 
 
 def bindable(key):
-    # type: (str) -> bool
+    # type: (str) -> bool or str
 
     if isinstance(key, str):
-        return key.upper() in allowed_keys
+        return key.upper() in SOURCE_KEYS
     elif isinstance(key, int):
-        if key in wx_keys:
-            return wx_keys[key]
-        elif chr(key).upper() in allowed_keys:
+        if key in WX_KEYS_CONVERSION:
+            return WX_KEYS_CONVERSION[key]
+        elif chr(key).upper() in SOURCE_KEYS:
             return True
         else:
             return False
@@ -377,31 +376,35 @@ def bindable(key):
         return False
 
 # Special characters taken from the VDC wiki.
-allowed_keys = [',', '.', "'", '/', '[', ']', '\\', '-', '=', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-                'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
-                'F11', 'F12', 'TAB', 'ENTER', 'ESCAPE', 'SPACE', 'BACKSPACE', 'UPARROW', 'DOWNARROW', 'LEFTARROW',
-                'RIGHTARROW', 'ALT', 'CTRL', 'SHIFT', 'INS', 'DEL', 'PGDN', 'PGUP', 'HOME', 'END', 'KP_HOME',
-                'KP_UPARROW', 'KP_PGUP', 'KP_LEFTARROW', 'KP_5', 'KP_RIGHTARROW', 'KP_END', 'KP_DOWNARROW',
-                'KP_PGDN', 'KP_ENTER', 'KP_INS', 'KP_DEL', 'KP_SLASH', 'KP_MULTIPLY', 'KP_MINUS', 'KP_PLUS',
-                'CAPSLOCK', 'MWHEELDOWN', 'MWHEELUP', 'MOUSE1', 'MOUSE2', 'MOUSE3', 'MOUSE4', 'MOUSE5', 'PAUSE']
+SOURCE_KEYS = (
+    ',', '.', "'", '/', '[', ']', '\\', '-', '=', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
+    'F11', 'F12', 'TAB', 'ENTER', 'ESCAPE', 'SPACE', 'BACKSPACE', 'UPARROW', 'DOWNARROW', 'LEFTARROW',
+    'RIGHTARROW', 'ALT', 'CTRL', 'SHIFT', 'INS', 'DEL', 'PGDN', 'PGUP', 'HOME', 'END', 'KP_HOME',
+    'KP_UPARROW', 'KP_PGUP', 'KP_LEFTARROW', 'KP_5', 'KP_RIGHTARROW', 'KP_END', 'KP_DOWNARROW',
+    'KP_PGDN', 'KP_ENTER', 'KP_INS', 'KP_DEL', 'KP_SLASH', 'KP_MULTIPLY', 'KP_MINUS', 'KP_PLUS',
+    'CAPSLOCK', 'MWHEELDOWN', 'MWHEELUP', 'MOUSE1', 'MOUSE2', 'MOUSE3', 'MOUSE4', 'MOUSE5', 'PAUSE'
+)
 
 # Conversion table for wx -> Source keys.
-wx_keys = {wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", wx.WXK_F5: "F5", wx.WXK_F6: "F6",
-           wx.WXK_F7: "F7", wx.WXK_F8: "F8", wx.WXK_F9: "F9", wx.WXK_F10: "F10", wx.WXK_F11: "F11",
-           wx.WXK_F12: "F12", wx.WXK_TAB: "TAB", wx.WXK_RETURN: "ENTER", wx.WXK_ESCAPE: "ESCAPE",
-           wx.WXK_SPACE: "SPACE", wx.WXK_BACK: "BACKSPACE", wx.WXK_UP: "UPARROW", wx.WXK_DOWN: "DOWNARROW",
-           wx.WXK_LEFT: "LEFTARROW", wx.WXK_RIGHT: "RIGHTARROW", wx.WXK_ALT: "ALT", wx.WXK_CONTROL: "CTRL",
-           wx.WXK_SHIFT: "SHIFT", wx.WXK_INSERT: "INS", wx.WXK_DELETE: "DEL", wx.WXK_PAGEDOWN: "PGDN",
-           wx.WXK_PAGEUP: "PGUP", wx.WXK_HOME: "HOME", wx.WXK_END: "END", wx.WXK_NUMPAD_HOME: "KP_HOME",
-           wx.WXK_NUMPAD_UP: "KP_UPARROW", wx.WXK_NUMPAD_PAGEUP: "KP_PGUP", wx.WXK_NUMPAD_LEFT: "KP_LEFTARROW",
-           wx.WXK_NUMPAD5: "KP_5", wx.WXK_NUMPAD_RIGHT: "KP_RIGHTARROW", wx.WXK_NUMPAD_END: "KP_END",
-           wx.WXK_NUMPAD_DOWN: "KP_DOWNARROW", wx.WXK_NUMPAD_PAGEDOWN: "KP_PGDN", wx.WXK_NUMPAD_ENTER: "KP_ENTER",
-           wx.WXK_NUMPAD_INSERT: "KP_INS", wx.WXK_NUMPAD_DELETE: "KP_DEL", wx.WXK_NUMPAD_DIVIDE: "KP_SLASH",
-           wx.WXK_NUMPAD_MULTIPLY: "KP_MULTIPLY", wx.WXK_NUMPAD_SUBTRACT: "KP_MINUS", wx.WXK_NUMPAD_ADD: "KP_PLUS",
-           wx.WXK_CAPITAL: "CAPSLOCK", wx.WXK_PAUSE: "PAUSE", wx.WXK_NUMPAD0: "KP_INS",
-           wx.WXK_NUMPAD_DECIMAL: "KP_DEL", wx.WXK_NUMPAD1: "KP_END", wx.WXK_NUMPAD2: "KP_DOWNARROW",
-           wx.WXK_NUMPAD3: "KP_PGDN", wx.WXK_NUMPAD4: "KP_LEFTARROW", wx.WXK_NUMPAD6: "KP_RIGHTARROW",
-           wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"}
+WX_KEYS_CONVERSION = {
+    wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", wx.WXK_F5: "F5", wx.WXK_F6: "F6",
+    wx.WXK_F7: "F7", wx.WXK_F8: "F8", wx.WXK_F9: "F9", wx.WXK_F10: "F10", wx.WXK_F11: "F11",
+    wx.WXK_F12: "F12", wx.WXK_TAB: "TAB", wx.WXK_RETURN: "ENTER", wx.WXK_ESCAPE: "ESCAPE",
+    wx.WXK_SPACE: "SPACE", wx.WXK_BACK: "BACKSPACE", wx.WXK_UP: "UPARROW", wx.WXK_DOWN: "DOWNARROW",
+    wx.WXK_LEFT: "LEFTARROW", wx.WXK_RIGHT: "RIGHTARROW", wx.WXK_ALT: "ALT", wx.WXK_CONTROL: "CTRL",
+    wx.WXK_SHIFT: "SHIFT", wx.WXK_INSERT: "INS", wx.WXK_DELETE: "DEL", wx.WXK_PAGEDOWN: "PGDN",
+    wx.WXK_PAGEUP: "PGUP", wx.WXK_HOME: "HOME", wx.WXK_END: "END", wx.WXK_NUMPAD_HOME: "KP_HOME",
+    wx.WXK_NUMPAD_UP: "KP_UPARROW", wx.WXK_NUMPAD_PAGEUP: "KP_PGUP", wx.WXK_NUMPAD_LEFT: "KP_LEFTARROW",
+    wx.WXK_NUMPAD5: "KP_5", wx.WXK_NUMPAD_RIGHT: "KP_RIGHTARROW", wx.WXK_NUMPAD_END: "KP_END",
+    wx.WXK_NUMPAD_DOWN: "KP_DOWNARROW", wx.WXK_NUMPAD_PAGEDOWN: "KP_PGDN", wx.WXK_NUMPAD_ENTER: "KP_ENTER",
+    wx.WXK_NUMPAD_INSERT: "KP_INS", wx.WXK_NUMPAD_DELETE: "KP_DEL", wx.WXK_NUMPAD_DIVIDE: "KP_SLASH",
+    wx.WXK_NUMPAD_MULTIPLY: "KP_MULTIPLY", wx.WXK_NUMPAD_SUBTRACT: "KP_MINUS", wx.WXK_NUMPAD_ADD: "KP_PLUS",
+    wx.WXK_CAPITAL: "CAPSLOCK", wx.WXK_PAUSE: "PAUSE", wx.WXK_NUMPAD0: "KP_INS",
+    wx.WXK_NUMPAD_DECIMAL: "KP_DEL", wx.WXK_NUMPAD1: "KP_END", wx.WXK_NUMPAD2: "KP_DOWNARROW",
+    wx.WXK_NUMPAD3: "KP_PGDN", wx.WXK_NUMPAD4: "KP_LEFTARROW", wx.WXK_NUMPAD6: "KP_RIGHTARROW",
+    wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"
+}
 
 logger = logging.getLogger('jam.tools')
