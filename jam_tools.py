@@ -354,7 +354,7 @@ def get_steam_path():
 
     try:
         reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
-        return winreg.QueryValueEx(reg_key, r'SteamPath')[0]
+        return os.path.normpath(winreg.QueryValueEx(reg_key, r'SteamPath')[0])
     except WindowsError:
         logger.exception("Could not query registry for Steam path")
         return os.curdir
