@@ -44,11 +44,7 @@ def wrap_exceptions(func):
     def _wrap_exceptions(calling_class):
         try:
             return func(calling_class)
-        except (KeyboardInterrupt, SystemExit):
-            calling_class.abort()
-            calling_class.parent.Destroy()
-            raise
-        except:
+        except Exception:
             error_message = ''.join(traceback.format_exc())
             error_dialog = wx.MessageDialog(parent=None,
                                             message="An error has occured\n" + error_message,
@@ -59,6 +55,7 @@ def wrap_exceptions(func):
             calling_class.abort()
             calling_class.parent.Destroy()
             raise
+
     return _wrap_exceptions
 
 
@@ -101,7 +98,6 @@ class FFmpegDownloaderThread(threading.Thread):
                 f.close()
 
 
-
 class FFmpegDownloader(wx.ProgressDialog):
     def __init__(self, parent, url):
         file_size = int(requests.head(url).headers["Content-Length"])
@@ -136,6 +132,7 @@ class FFmpegDownloader(wx.ProgressDialog):
         logging.info("FFmpeg download complete.")
         wx.CallAfter(self.Destroy)
 
+
 class FFmpegConvertThread(threading.Thread):
     def __init__(self, parent, dest, rate, vol, songs):
         super(FFmpegConvertThread, self).__init__()
@@ -160,6 +157,9 @@ class FFmpegConvertThread(threading.Thread):
             try:
                 track = next(tracks)
                 file = os.path.join(self.dest, os.path.splitext(os.path.basename(track))[0])
+                logger.info("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
+                                                                                                rate=self.rate,
+                                                                                                vol=self.vol))
                 convert = convert_audio(track, file, self.rate, self.vol)
                 if convert != 0:
                     errors += 1
@@ -172,6 +172,7 @@ class FFmpegConvertThread(threading.Thread):
                 break
 
     def strip_encoder(self, file):
+        logger.info("Stripping metadata from {file}".format(file=file))
         with open(file + '.wav', 'rb') as f:
             wav = bytearray(f.read())
         del wav[ENCODER_START:ENCODER_START + ENCODER_LEN]
@@ -239,7 +240,7 @@ class FFmpegConvertDialog(wx.Dialog):
             return
 
         self.progress_dialog = wx.ProgressDialog("Conversion", "Converting songs...", self.num_songs, parent=self,
-                                         style=wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT)
+                                                 style=wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
 
         self.converter = FFmpegConvertThread(self, self.out_dir.GetPath(), self.game_rate.GetValue(),
                                              self.volume.GetValue(), songs)
@@ -286,5 +287,7 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
     return subprocess.call(cmd)
 
+
+FILE_EXTS = ('*.3gp', '*.aac', '*.flv', '*.m4a', '*.mp3', '*.mp4', '*.ogg', '*.wav', '*.webm', '*.flac', '*.mkv')
 
 logger = logging.getLogger('jam.ffmpeg')

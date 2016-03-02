@@ -231,6 +231,11 @@ class JamHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if os.path.basename(event.src_path) == "jam_cmd.cfg":
             self.calling.load_song(event.src_path)
+
+    def on_moved(self, event):
+        # This isn't really needed, but it's useful for things that use something like atomic saving.
+        if os.path.basename(event.src_path) == "jam_cmd.cfg":
+            self.calling.load_song(event.src_path)
         elif os.path.basename(event.dest_path) == "jam_cmd.cfg":
             self.calling.load_song(event.dest_path)
 
@@ -239,9 +244,7 @@ class JamObserver(Observer):
     def run(self):
         try:
             super(JamObserver, self).run()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
+        except Exception:
             error_message = ''.join(traceback.format_exc())
             error_dialog = wx.MessageDialog(parent=None,
                                             message="An error has occured\n" + error_message,
@@ -249,6 +252,8 @@ class JamObserver(Observer):
             error_dialog.ShowModal()
             error_dialog.Destroy()
             logger.critical(error_message)
+            self.stop()
+            self.join()
             raise
 
 
@@ -284,13 +289,17 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('voice_fadeouttime 0.0\n')
         cfg.write('con_enable 1; showconsole\n')
         cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
+        logger.info("Wrote jam.cfg to {path}".format(path=cfg.name))
     with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w') as cfg:
         for x, track in enumerate(tracks):
-            cfg.write('echo {x}. {name}. Aliases: {aliases}\n'.format(x=x, name=track.name, aliases=track.aliases))
+            cfg.write('echo "{x}. {name}. Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
+        logger.info("Wrote jam_la.cfg to {path}".format(path=cfg.name))
     with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w') as cfg:
         cfg.write('echo "pyjam :: No song loaded"\n')
+        logger.info("Wrote jam_curtrack.cfg to {path}".format(path=cfg.name))
     with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w') as cfg:
         cfg.write('say "pyjam :: No song loaded"\n')
+        logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
 
 
 def get_tracks(audio_path):

@@ -477,18 +477,18 @@ class SetupDialog(wx.Dialog):
 def start_logger():
     global logger  # Is this bad practice?
     logger = logging.getLogger('jam')
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
 
     stream_log = logging.StreamHandler(sys.stdout)
-    stream_log.setLevel(logging.DEBUG)
+    stream_log.setLevel(logging.INFO)
     stream_log.setFormatter(formatter)
     logger.addHandler(stream_log)
 
     try:
         file_log = logging.FileHandler(filename='pyjam.log')
-        file_log.setLevel(logging.DEBUG)
+        file_log.setLevel(logging.INFO)
         file_log.setFormatter(formatter)
         logger.addHandler(file_log)
     except (OSError, IOError):
