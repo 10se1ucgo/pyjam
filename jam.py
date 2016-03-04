@@ -20,12 +20,14 @@ import logging
 import json
 import traceback
 
-import wx  # Tested w/ wxPhoenix 3.0.2
+import wx  # Tested w/ wxPhoenix 3.0.3
+import  wx.lib.intctrl  # This was fixed recently. You need the latest version of wxPython-Pheonix!
 from ObjectListView import ColumnDefn, ObjectListView
 
 import ffmpeg
 import jam_tools
 import jam_about
+import jam_downloader
 
 # If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
@@ -44,6 +46,7 @@ class MainFrame(wx.Frame):
 
         file_menu = wx.Menu()
         settings = file_menu.Append(wx.ID_SETUP, "&Settings", "pyjam Setup")
+
         help_menu = wx.Menu()
         about = help_menu.Append(wx.ID_ABOUT, "&About", "About pyjam")
         licenses = help_menu.Append(wx.ID_ANY, "&Licenses", "Open source licenses")
@@ -51,7 +54,6 @@ class MainFrame(wx.Frame):
         menu_bar = wx.MenuBar()
         menu_bar.Append(file_menu, "&File")
         menu_bar.Append(help_menu, "&Help")
-
         self.SetMenuBar(menu_bar)
 
         if sys.platform == "win32":
@@ -102,6 +104,7 @@ class MainPanel(wx.Panel):
         refresh_button = wx.Button(self, label="Refresh tracks")
         self.start_stop_button = wx.Button(self, label="Start")
         convert_button = wx.Button(self, label="Audio converter")
+        download_button = wx.Button(self, label="Audio downloader")
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)  # Root sizer
         profile_sizer = wx.BoxSizer(wx.VERTICAL)  # For the profile selection
@@ -113,6 +116,7 @@ class MainPanel(wx.Panel):
         button_sizer.Add(refresh_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(self.start_stop_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(convert_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        button_sizer.Add(download_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
 
         top_sizer.Add(profile_sizer, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(olv_sizer, 1, wx.ALL | wx.EXPAND, 5)
@@ -131,6 +135,7 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.refresh, refresh_button)
         self.Bind(wx.EVT_BUTTON, self.start_stop, self.start_stop_button)
         self.Bind(wx.EVT_BUTTON, self.convert, convert_button)
+        self.Bind(wx.EVT_BUTTON, self.download, download_button)
 
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.list_right_click, self.track_list)
         self.Bind(wx.EVT_MENU, self.set_aliases, set_aliases)
@@ -192,6 +197,9 @@ class MainPanel(wx.Panel):
         else:
             ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir)
             self.game_select(None)
+
+    def download(self, event):
+        jam_downloader.AudioDownloaderDialog(self)
 
     def list_right_click(self, event):
         self.selected_track = event.GetIndex()
@@ -300,12 +308,11 @@ class MainPanel(wx.Panel):
 
 class SetupDialog(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super(SetupDialog, self).__init__(parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         self.steam_path = wx.DirPickerCtrl(self, name="Path to Steam")
         self.steam_path.SetInitialDirectory(jam_tools.get_steam_path())
         steam_path_text = wx.StaticText(self, label="Path to Steam (e.g. C:\\Program Files (x86)\\Steam)")
-
 
         self.games = config.get_games()
         self.profile = wx.ComboBox(self, choices=[game.name for game in self.games], style=wx.CB_READONLY)
@@ -502,12 +509,12 @@ def start_logger():
 
 def exception_hook(error, value, trace):
     error_message = ''.join(traceback.format_exception(error, value, trace))
+    logger.critical(error_message)
     error_dialog = wx.MessageDialog(parent=None,
                                     message="An error has occured\n" + error_message,
                                     caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
     error_dialog.ShowModal()
     error_dialog.Destroy()
-    logger.critical(error_message)
 
 if __name__ == '__main__':
     wx_app = wx.App(redirect=0)

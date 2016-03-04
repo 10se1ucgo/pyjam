@@ -44,6 +44,29 @@ except NameError:
     FileNotFoundError = OSError
 
 
+def wrap_exceptions(func):
+    def _wrap_exceptions(*args, **kwargs):
+        # args[0] = InstanceOfSomeClass() when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            error_message = ''.join(traceback.format_exc())
+            error_dialog = wx.MessageDialog(parent=None,
+                                            message="An error has occured\n" + error_message,
+                                            caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
+            error_dialog.ShowModal()
+            error_dialog.Destroy()
+            logger.critical(error_message)
+            try:
+                args[0].abort()
+                args[0].parent.Destroy()
+            except AttributeError:
+                pass
+            raise
+
+    return _wrap_exceptions
+
+
 class Config(object):
     def __init__(self, config_file):
         self.config_file = config_file
@@ -161,6 +184,7 @@ class Game(object):
     def __str__(self):
         return "Source Engine Game: {name}".format(name=self.name)
 
+
 class Jam(object):
     def __init__(self, steam_path, game_class, tracks):
         self.steam_path = steam_path
@@ -241,20 +265,13 @@ class JamHandler(FileSystemEventHandler):
 
 
 class JamObserver(Observer):
+    @wrap_exceptions
     def run(self):
-        try:
-            super(JamObserver, self).run()
-        except Exception:
-            error_message = ''.join(traceback.format_exc())
-            error_dialog = wx.MessageDialog(parent=None,
-                                            message="An error has occured\n" + error_message,
-                                            caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
-            error_dialog.ShowModal()
-            error_dialog.Destroy()
-            logger.critical(error_message)
-            self.stop()
-            self.join()
-            raise
+        super(JamObserver, self).run()
+
+    def abort(self):
+        self.stop()
+        self.join()
 
 
 def write_configs(path, tracks, play_key, relay_key, use_aliases):
@@ -319,7 +336,7 @@ def get_tracks(audio_path):
     try:
         with open(os.path.join(audio_path, 'track_data.json')) as f:
             track_data = json.load(f)
-    except (FileNotFoundError, IOError, ValueError):
+    except FileNotFoundError:
         track_data = {}
 
     for track in glob.glob(os.path.join(audio_path, '*.wav')):

@@ -24,12 +24,12 @@ import os
 import sys
 import subprocess
 import threading
-import traceback
 
 import requests
 import wx
 
 import seven_zip
+from jam_tools import wrap_exceptions
 
 try:
     from shutil import which
@@ -39,24 +39,6 @@ except ImportError:
 ENCODER_START = 36
 ENCODER_LEN = 34
 
-
-def wrap_exceptions(func):
-    def _wrap_exceptions(calling_class):
-        try:
-            return func(calling_class)
-        except Exception:
-            error_message = ''.join(traceback.format_exc())
-            error_dialog = wx.MessageDialog(parent=None,
-                                            message="An error has occured\n" + error_message,
-                                            caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
-            error_dialog.ShowModal()
-            error_dialog.Destroy()
-            logger.critical(error_message)
-            calling_class.abort()
-            calling_class.parent.Destroy()
-            raise
-
-    return _wrap_exceptions
 
 
 class FFmpegDownloaderThread(threading.Thread):
@@ -92,18 +74,15 @@ class FFmpegDownloaderThread(threading.Thread):
                     wx.CallAfter(self.parent.update, file_size_dl)
                 except StopIteration:
                     wx.CallAfter(self.parent.complete)
-                    f.close()
                     break
-            else:
-                f.close()
 
 
 class FFmpegDownloader(wx.ProgressDialog):
     def __init__(self, parent, url):
         file_size = int(requests.head(url).headers["Content-Length"])
-        wx.ProgressDialog.__init__(self, "Download in progress", "Downloading FFmpeg...", file_size // 1024, parent,
-                                   style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME |
-                                         wx.PD_CAN_ABORT)
+        super(FFmpegDownloader, self).__init__("Download in progress", "Downloading FFmpeg...", file_size // 1024,
+                                               parent, style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME |
+                                                             wx.PD_REMAINING_TIME | wx.PD_CAN_ABORT)
 
         self.downloader = FFmpegDownloaderThread(self, url, file_size)
 
@@ -112,24 +91,26 @@ class FFmpegDownloader(wx.ProgressDialog):
             if not self.Update(value=message // 1024)[0]:
                 # Cancel button pressed
                 self.downloader.abort()
-                print(self.downloader.running)
+                logging.info("FFmpeg download canceled.")
+
                 alert = wx.MessageDialog(self, "Aborted! FFmpeg was not downloaded.", "pyjam", wx.ICON_EXCLAMATION)
                 alert.ShowModal()
                 alert.Destroy()
-                logging.info("FFmpeg download canceled.")
+
                 wx.CallAfter(self.Destroy)
 
     def complete(self):
+        logging.info("FFmpeg download complete.")
         if seven_zip.find() is None:
             message_str = "FFmpeg was downloaded succesfully!\nPlease extract it. (bin/ffmpeg.7z)"
         else:
             seven_zip.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
             os.remove(os.path.normpath('bin/ffmpeg.7z'))
-            message_str = "FFmpeg was downloaded succesfully!..."
+            message_str = "FFmpeg was downloaded succesfully!"
+
         message = wx.MessageDialog(self, message_str, "pyjam")
         message.ShowModal()
         message.Destroy()
-        logging.info("FFmpeg download complete.")
         wx.CallAfter(self.Destroy)
 
 
@@ -141,6 +122,7 @@ class FFmpegConvertThread(threading.Thread):
         self.rate = rate
         self.vol = vol
         self.songs = songs
+        self.converted = 0
         self.running = True
         self.daemon = True
         self.start()
@@ -151,7 +133,6 @@ class FFmpegConvertThread(threading.Thread):
     @wrap_exceptions
     def run(self):
         tracks = iter(self.songs)
-        converted = 0
         errors = 0
         while self.running:
             try:
@@ -165,8 +146,8 @@ class FFmpegConvertThread(threading.Thread):
                     errors += 1
                 else:
                     self.strip_encoder(file)
-                converted += 1
-                self.parent.update(converted)
+                self.converted += 1
+                self.parent.update(self.converted)
             except StopIteration:
                 self.parent.complete(errors)
                 break
@@ -178,11 +159,13 @@ class FFmpegConvertThread(threading.Thread):
         del wav[ENCODER_START:ENCODER_START + ENCODER_LEN]
         with open(file + '.wav', 'wb') as f:
             f.write(wav)
-
+        self.converted += 1
+        self.parent.update(self.converted)
 
 class FFmpegConvertDialog(wx.Dialog):
     def __init__(self, parent, rate, out):
-        wx.Dialog.__init__(self, parent, title="Audio Converter", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super(FFmpegConvertDialog, self).__init__(parent, title="Audio Converter",
+                                                  style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.parent = parent
 
         self.game_rate = wx.TextCtrl(self)
@@ -239,7 +222,7 @@ class FFmpegConvertDialog(wx.Dialog):
             alert.Destroy()
             return
 
-        self.progress_dialog = wx.ProgressDialog("Conversion", "Converting songs...", self.num_songs, parent=self,
+        self.progress_dialog = wx.ProgressDialog("Conversion", "Converting songs...", self.num_songs * 2, parent=self,
                                                  style=wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
 
         self.converter = FFmpegConvertThread(self, self.out_dir.GetPath(), self.game_rate.GetValue(),
