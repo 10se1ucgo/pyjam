@@ -33,7 +33,7 @@ class AudioDownloaderThread(threading.Thread):
 
         if opts is None:
             self.opts = {'format': 'bestaudio/best', 'outtmpl': os.path.join(dest, '%(title)s.%(ext)s'),
-                         'progress_hooks': [self.progress]}
+                         'progress_hooks': [self.progress_hook]}
         else:
             self.opts = opts
 
@@ -66,7 +66,7 @@ class AudioDownloaderThread(threading.Thread):
                     self.parent.complete(errors)
                     break
 
-    def progress(self, status):
+    def progress_hook(self, status):
         try:
             total = int(status.get('total_bytes'))
             downloaded = int(status.get('downloaded_bytes'))
