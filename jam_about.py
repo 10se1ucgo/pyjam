@@ -43,11 +43,11 @@ def about_info(parent):
     about_pg.SetName("pyjam")
     about_pg.SetVersion("v{v}".format(v=__version__))
     about_pg.SetCopyright("Copyright (C) 10se1ucgo 2016")
-    about_pg.SetDescription("An opensource, cross-platform audio player for Source and GoldSrc engine based games.")
+    about_pg.SetDescription("An open source, cross-platform audio player for Source and GoldSrc engine based games.")
     about_pg.SetWebSite("https://github.com/10se1ucgo/pyjam", "GitHub repo")
     about_pg.AddDeveloper("10se1ucgo")
     about_pg.AddDeveloper("Dx724")
-    about_pg.AddArtist("Dx724")
+    about_pg.AddArtist("Dx724 - Icon")
     about_pg.SetLicense(license_text)
     wx.adv.AboutBox(about_pg, parent)
 
@@ -56,7 +56,7 @@ class Licenses(wx.Dialog):
     def __init__(self, parent):
         super(Licenses, self).__init__(parent, title="Licenses", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
-        self.scrolled_panel = sp.ScrolledPanel(self, size=(600, 400))
+        self.scrolled_panel = sp.ScrolledPanel(self)
 
         mono_font = wx.Font()
         mono_font.SetFamily(wx.FONTFAMILY_TELETYPE)
@@ -185,32 +185,8 @@ class Licenses(wx.Dialog):
         ffmpeg_text = wx.StaticText(self.scrolled_panel, label=ffmpeg_info)
         ffmpeg_text.SetFont(mono_font)
 
-        pubsub = wx.StaticText(self.scrolled_panel, label="pyjam uses PyPubSub. Its license is below")
-        pubsub_license = """
-    Copyright (c) since 2006, Oliver Schoenborn
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-
-    1. Redistributions of source code must retain the above copyright notice, this
-       list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright notice,
-       this list of conditions and the following disclaimer in the documentation
-       and/or other materials provided with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
-        pubsub_text = wx.StaticText(self.scrolled_panel, label=pubsub_license)
-        pubsub_text.SetFont(mono_font)
+        meme_text = wx.StaticText(self.scrolled_panel, label=("Special 'drop dead' to my best friends s1zZLe && xioner "
+                                                              "for their support and care <3"))
 
         self.top_sizer = wx.BoxSizer(wx.VERTICAL)
         self.scroll_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -222,12 +198,11 @@ class Licenses(wx.Dialog):
         self.scroll_sizer.Add(seven_text, 0, wx.EXPAND | wx.ALL, 3)
         self.scroll_sizer.Add(ffmpeg, 0, wx.ALL, 2)
         self.scroll_sizer.Add(ffmpeg_text, 0, wx.EXPAND | wx.ALL, 3)
-        self.scroll_sizer.Add(pubsub, 0, wx.ALL, 2)
-        self.scroll_sizer.Add(pubsub_text, 0, wx.EXPAND | wx.ALL, 3)
-        self.top_sizer.Add(self.scrolled_panel)
+        self.scroll_sizer.Add(meme_text, 0, wx.ALL, 2)
+        self.top_sizer.Add(self.scrolled_panel, 1, wx.EXPAND)
 
         self.SetSizerAndFit(self.top_sizer)
-        self.scrolled_panel.SetSizer(self.scroll_sizer)
+        self.scrolled_panel.SetSizerAndFit(self.scroll_sizer)
         self.scrolled_panel.SetAutoLayout(True)
         self.scrolled_panel.SetupScrolling()
         self.Show()

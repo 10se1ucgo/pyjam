@@ -36,12 +36,44 @@ try:
 except ImportError:
     winreg = False
 
-
 # If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
 except NameError:
     FileNotFoundError = OSError
+
+# Special characters taken from the VDC wiki.
+SOURCE_KEYS = (
+    ',', '.', "'", '/', '[', ']', '\\', '-', '=', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
+    'F11', 'F12', 'TAB', 'ENTER', 'ESCAPE', 'SPACE', 'BACKSPACE', 'UPARROW', 'DOWNARROW', 'LEFTARROW',
+    'RIGHTARROW', 'ALT', 'CTRL', 'SHIFT', 'INS', 'DEL', 'PGDN', 'PGUP', 'HOME', 'END', 'KP_HOME',
+    'KP_UPARROW', 'KP_PGUP', 'KP_LEFTARROW', 'KP_5', 'KP_RIGHTARROW', 'KP_END', 'KP_DOWNARROW',
+    'KP_PGDN', 'KP_ENTER', 'KP_INS', 'KP_DEL', 'KP_SLASH', 'KP_MULTIPLY', 'KP_MINUS', 'KP_PLUS',
+    'CAPSLOCK', 'MWHEELDOWN', 'MWHEELUP', 'MOUSE1', 'MOUSE2', 'MOUSE3', 'MOUSE4', 'MOUSE5', 'PAUSE'
+)
+# Conversion table for wx -> Source keys.
+WX_KEYS_CONVERSION = {
+    wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", wx.WXK_F5: "F5", wx.WXK_F6: "F6",
+    wx.WXK_F7: "F7", wx.WXK_F8: "F8", wx.WXK_F9: "F9", wx.WXK_F10: "F10", wx.WXK_F11: "F11",
+    wx.WXK_F12: "F12", wx.WXK_TAB: "TAB", wx.WXK_RETURN: "ENTER", wx.WXK_ESCAPE: "ESCAPE",
+    wx.WXK_SPACE: "SPACE", wx.WXK_BACK: "BACKSPACE", wx.WXK_UP: "UPARROW", wx.WXK_DOWN: "DOWNARROW",
+    wx.WXK_LEFT: "LEFTARROW", wx.WXK_RIGHT: "RIGHTARROW", wx.WXK_ALT: "ALT", wx.WXK_CONTROL: "CTRL",
+    wx.WXK_SHIFT: "SHIFT", wx.WXK_INSERT: "INS", wx.WXK_DELETE: "DEL", wx.WXK_PAGEDOWN: "PGDN",
+    wx.WXK_PAGEUP: "PGUP", wx.WXK_HOME: "HOME", wx.WXK_END: "END", wx.WXK_NUMPAD_HOME: "KP_HOME",
+    wx.WXK_NUMPAD_UP: "KP_UPARROW", wx.WXK_NUMPAD_PAGEUP: "KP_PGUP", wx.WXK_NUMPAD_LEFT: "KP_LEFTARROW",
+    wx.WXK_NUMPAD5: "KP_5", wx.WXK_NUMPAD_RIGHT: "KP_RIGHTARROW", wx.WXK_NUMPAD_END: "KP_END",
+    wx.WXK_NUMPAD_DOWN: "KP_DOWNARROW", wx.WXK_NUMPAD_PAGEDOWN: "KP_PGDN", wx.WXK_NUMPAD_ENTER: "KP_ENTER",
+    wx.WXK_NUMPAD_INSERT: "KP_INS", wx.WXK_NUMPAD_DELETE: "KP_DEL", wx.WXK_NUMPAD_DIVIDE: "KP_SLASH",
+    wx.WXK_NUMPAD_MULTIPLY: "KP_MULTIPLY", wx.WXK_NUMPAD_SUBTRACT: "KP_MINUS", wx.WXK_NUMPAD_ADD: "KP_PLUS",
+    wx.WXK_CAPITAL: "CAPSLOCK", wx.WXK_PAUSE: "PAUSE", wx.WXK_NUMPAD0: "KP_INS",
+    wx.WXK_NUMPAD_DECIMAL: "KP_DEL", wx.WXK_NUMPAD1: "KP_END", wx.WXK_NUMPAD2: "KP_DOWNARROW",
+    wx.WXK_NUMPAD3: "KP_PGDN", wx.WXK_NUMPAD4: "KP_LEFTARROW", wx.WXK_NUMPAD6: "KP_RIGHTARROW",
+    wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"
+}
+
+logger = logging.getLogger('jam.tools')
 
 
 def wrap_exceptions(func):
@@ -51,7 +83,7 @@ def wrap_exceptions(func):
             return func(*args, **kwargs)
         except Exception:
             error_message = ''.join(traceback.format_exc())
-            error_dialog = wx.MessageDialog(parent=None,
+            error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
                                             message="An error has occured\n" + error_message,
                                             caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
             error_dialog.ShowModal()
@@ -78,12 +110,12 @@ class Config(object):
         # this is ugly
         steam = get_steam_path()
         default = {'games':
-                   [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': '22050',
+                   [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': 22050,
                      'name': 'Counter-Strike: Global Offensive',
                      'mod_path':
                      os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')),
                      'play_key': 'F8', 'relay_key': '='},
-                    {'audio_dir': 'audio/css', 'use_aliases': True, 'audio_rate': '11025',
+                    {'audio_dir': 'audio/css', 'use_aliases': True, 'audio_rate': 11025,
                      'name': 'Counter-Strike: Source',
                      'mod_path': os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Source/css')),
                      'play_key': 'F8', 'relay_key': '='}],
@@ -95,13 +127,15 @@ class Config(object):
     def load(self):
         # type: () -> str, list
         try:
-            with open(self.config_file, 'r') as f:
+            with open(self.config_file) as f:
                 try:
                     config_json = json.load(f)
                 except ValueError:
-                    wx.MessageDialog(parent=None,
-                                     message="Malformed config file! Overwriting with default.",
-                                     caption="Error!", style=wx.OK | wx.ICON_WARNING).ShowModal()
+                    error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+                                             message="Malformed config file! Overwriting with default.",
+                                             caption="Error!", style=wx.OK | wx.ICON_WARNING)
+                    error.ShowModal()
+                    error.Destroy()
                     self.new()
                     logger.exception("Corrupt config.")
                     return self.load()
@@ -338,6 +372,9 @@ def get_tracks(audio_path):
             track_data = json.load(f)
     except FileNotFoundError:
         track_data = {}
+    except (IOError, ValueError):
+        track_data = {}
+        logging.exception("Invalid trackdata for {path}".format(path=os.path.join(audio_path, 'track_data.json')))
 
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         bind = None
@@ -401,36 +438,17 @@ def bindable(key):
     else:
         return False
 
-# Special characters taken from the VDC wiki.
-SOURCE_KEYS = (
-    ',', '.', "'", '/', '[', ']', '\\', '-', '=', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
-    'F11', 'F12', 'TAB', 'ENTER', 'ESCAPE', 'SPACE', 'BACKSPACE', 'UPARROW', 'DOWNARROW', 'LEFTARROW',
-    'RIGHTARROW', 'ALT', 'CTRL', 'SHIFT', 'INS', 'DEL', 'PGDN', 'PGUP', 'HOME', 'END', 'KP_HOME',
-    'KP_UPARROW', 'KP_PGUP', 'KP_LEFTARROW', 'KP_5', 'KP_RIGHTARROW', 'KP_END', 'KP_DOWNARROW',
-    'KP_PGDN', 'KP_ENTER', 'KP_INS', 'KP_DEL', 'KP_SLASH', 'KP_MULTIPLY', 'KP_MINUS', 'KP_PLUS',
-    'CAPSLOCK', 'MWHEELDOWN', 'MWHEELUP', 'MOUSE1', 'MOUSE2', 'MOUSE3', 'MOUSE4', 'MOUSE5', 'PAUSE'
-)
 
-# Conversion table for wx -> Source keys.
-WX_KEYS_CONVERSION = {
-    wx.WXK_F1: 'F1', wx.WXK_F2: "F2", wx.WXK_F3: "F3", wx.WXK_F4: "F4", wx.WXK_F5: "F5", wx.WXK_F6: "F6",
-    wx.WXK_F7: "F7", wx.WXK_F8: "F8", wx.WXK_F9: "F9", wx.WXK_F10: "F10", wx.WXK_F11: "F11",
-    wx.WXK_F12: "F12", wx.WXK_TAB: "TAB", wx.WXK_RETURN: "ENTER", wx.WXK_ESCAPE: "ESCAPE",
-    wx.WXK_SPACE: "SPACE", wx.WXK_BACK: "BACKSPACE", wx.WXK_UP: "UPARROW", wx.WXK_DOWN: "DOWNARROW",
-    wx.WXK_LEFT: "LEFTARROW", wx.WXK_RIGHT: "RIGHTARROW", wx.WXK_ALT: "ALT", wx.WXK_CONTROL: "CTRL",
-    wx.WXK_SHIFT: "SHIFT", wx.WXK_INSERT: "INS", wx.WXK_DELETE: "DEL", wx.WXK_PAGEDOWN: "PGDN",
-    wx.WXK_PAGEUP: "PGUP", wx.WXK_HOME: "HOME", wx.WXK_END: "END", wx.WXK_NUMPAD_HOME: "KP_HOME",
-    wx.WXK_NUMPAD_UP: "KP_UPARROW", wx.WXK_NUMPAD_PAGEUP: "KP_PGUP", wx.WXK_NUMPAD_LEFT: "KP_LEFTARROW",
-    wx.WXK_NUMPAD5: "KP_5", wx.WXK_NUMPAD_RIGHT: "KP_RIGHTARROW", wx.WXK_NUMPAD_END: "KP_END",
-    wx.WXK_NUMPAD_DOWN: "KP_DOWNARROW", wx.WXK_NUMPAD_PAGEDOWN: "KP_PGDN", wx.WXK_NUMPAD_ENTER: "KP_ENTER",
-    wx.WXK_NUMPAD_INSERT: "KP_INS", wx.WXK_NUMPAD_DELETE: "KP_DEL", wx.WXK_NUMPAD_DIVIDE: "KP_SLASH",
-    wx.WXK_NUMPAD_MULTIPLY: "KP_MULTIPLY", wx.WXK_NUMPAD_SUBTRACT: "KP_MINUS", wx.WXK_NUMPAD_ADD: "KP_PLUS",
-    wx.WXK_CAPITAL: "CAPSLOCK", wx.WXK_PAUSE: "PAUSE", wx.WXK_NUMPAD0: "KP_INS",
-    wx.WXK_NUMPAD_DECIMAL: "KP_DEL", wx.WXK_NUMPAD1: "KP_END", wx.WXK_NUMPAD2: "KP_DOWNARROW",
-    wx.WXK_NUMPAD3: "KP_PGDN", wx.WXK_NUMPAD4: "KP_LEFTARROW", wx.WXK_NUMPAD6: "KP_RIGHTARROW",
-    wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"
-}
-
-logger = logging.getLogger('jam.tools')
+def key_choice_override(event):
+    converted = bindable(event.GetKeyCode())
+    # If converted gave us a bool, it's already a compatible key
+    if converted is True:
+        event.GetEventObject().SetStringSelection(chr(event.GetKeyCode()))
+        return True
+    # If converted gave us a string, it was converted
+    elif converted:
+        event.GetEventObject().SetStringSelection(converted)
+        return True
+    # Otherwise, it's not compatible and can't be converted.
+    else:
+        return False

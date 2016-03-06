@@ -2,7 +2,7 @@
     "games": [
         {
             "audio_dir": "audio/csgo",
-            "audio_rate": "22050",
+            "audio_rate": 22050,
             "mod_path": "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/csgo",
             "name": "Counter-Strike: Global Offensive",
             "play_key": "F8",
@@ -11,12 +11,13 @@
         },
         {
             "audio_dir": "audio/css",
-            "audio_rate": "11025",
+            "audio_rate": 11025,
             "mod_path": "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Source/css",
             "name": "Counter-Strike: Source",
             "play_key": "F8",
             "relay_key": "=",
             "use_aliases": true
         }
-    ]
+    ],
+    "steam_path": "c:/program files (x86)/steam"
 }
