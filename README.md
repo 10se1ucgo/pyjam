@@ -1,5 +1,4 @@
-pyjam
---
+# pyjam
 ![header image](http://i.imgur.com/ic7toeV.png)
 
 pyjam is an open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python
@@ -7,8 +6,7 @@ pyjam is an open source, cross-platform audio player for Source and GoldSrc engi
 ~~It doesn't work yet, by the way!~~  
 As of 2/21/16, it works!
 
-REQUIREMENTS
---
+# REQUIREMENTS
 * Tested on CPython 3.5. 2.7+ should work.
 * [wxPython Phoenix](https://github.com/wxWidgets/Phoenix) - GUI
     * Compiling for Python 3.5 is a bit broken. [Patch + a wheel for CPython 3.5 x64 can be found here](https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e)
@@ -16,12 +14,10 @@ REQUIREMENTS
 * [watchdog](https://pypi.python.org/pypi/watchdog) - Cross-platform file system monitoring
 * [youtube-dl](https://github.com/rg3/youtube-dl/) - Audio/Video downloader (supports many websites, not just YouTube)
 
-Backwards compatibility
---
-* [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which() for Python <3.3
+## Python <3.3
+* [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which()
 
-TODO
---
+# TODO
 - [x] Base UI stuff
     - [x] Track list (ObjectListView)
     - [x] Switch between games
@@ -49,16 +45,13 @@ TODO
       - [x] GUI for accessing downloader
 
 
-KNOWN ISSUES
---
-
+# KNOWN ISSUES
 Config editor doesn't correctly save config on Linux. (Tested on latest version of Linux Mint as of 2/28)
 Workaround: Edit jamconfig.json manually.
 
 
 
-LICENSE
---
+# LICENSE
 ```
 Copyright (C) 10se1ucgo 2016
 
