@@ -22,6 +22,7 @@ import json
 import logging
 from string import whitespace, punctuation
 
+import psutil
 import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -79,12 +80,13 @@ logger = logging.getLogger('jam.tools')
 def wrap_exceptions(func):
     def _wrap_exceptions(*args, **kwargs):
         # args[0] = InstanceOfSomeClass() when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
+        # This should really only be used on threads (main thread has a sys.excepthook)
         try:
             return func(*args, **kwargs)
         except Exception:
             error_message = ''.join(traceback.format_exc())
             error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
-                                            message="An error has occured\n" + error_message,
+                                            message="An error has occured\n\n" + error_message,
                                             caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
             error_dialog.ShowModal()
             error_dialog.Destroy()
@@ -189,10 +191,10 @@ class Track(object):
         return self.bind if self.bind else " "
 
     def __repr__(self):
-        return "{c}(name:{name}, aliases:{aliases}, location{path})".format(c=self.__class__,
-                                                                            name=self.name,
-                                                                            aliases=self.aliases,
-                                                                            path=self.path)
+        return "{c}(name:{name}, aliases:{aliases}, location:{path})".format(c=self.__class__,
+                                                                             name=self.name,
+                                                                             aliases=self.aliases,
+                                                                             path=self.path)
 
     def __str__(self):
         return "Music Track: {name}".format(name=self.name)
@@ -248,7 +250,7 @@ class Jam(object):
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_saycurtrack.cfg")))
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, self.voice)))
         except (FileNotFoundError, IOError):
-            logging.exception("Could not remove some files:")
+            logger.exception("Could not remove some files:")
 
     def load_song(self, path):
         song_id = self.poll_song(path)
@@ -311,7 +313,7 @@ class JamObserver(Observer):
 def write_configs(path, tracks, play_key, relay_key, use_aliases):
     # /!\ Use double-quotes (") for Source engine configs! /!\
     # Lazy debugging stuff:
-    # logger.write = lambda x: logging.info(x)
+    # logger.write = lambda x: logger.debug(x)
     # cfg = logger
     with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
@@ -361,12 +363,12 @@ def get_tracks(audio_path):
     current_tracks = []
     bound_keys = []
 
-    # Format for custom aliases
+    # Format for custom track data.
     # {
-    #     "song1": {"aliases": ["alias1", "alias2", "etc."]},
-    #     "song2": {"aliases": ["alias1", "alias2", "etc."]}
+    #     "song1": {"aliases": ["alias1", "alias2", "etc."], "bind": "DOWNARROW"},
+    #     "song2": {"aliases": ["alias3", "alias4", "etc."], "bind": "KP_INS"}
     # }
-
+    logger.info("Generating track list with path {path}".format(path=audio_path))
     try:
         with open(os.path.join(audio_path, 'track_data.json')) as f:
             track_data = json.load(f)
@@ -374,7 +376,7 @@ def get_tracks(audio_path):
         track_data = {}
     except (IOError, ValueError):
         track_data = {}
-        logging.exception("Invalid trackdata for {path}".format(path=os.path.join(audio_path, 'track_data.json')))
+        logger.exception("Invalid track data for {path}".format(path=os.path.join(audio_path, 'track_data.json')))
 
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         bind = None
@@ -395,6 +397,7 @@ def get_tracks(audio_path):
         black_list.extend(aliases)
         current_tracks.append(Track(name, aliases, track, bind))
 
+    logger.debug("Generated track list {tracks}".format(tracks='\n'.join([repr(x) for x in current_tracks])))
     return current_tracks
 
 
@@ -412,15 +415,21 @@ def filter_aliases(alias_or_name):
 
 def get_steam_path():
     # type: () -> str
-    if not winreg:
-        return os.curdir
+    for pid in psutil.process_iter():
+        try:
+            if pid.name().lower() == "steam.exe" or pid.name().lower() == "steam":
+                return os.path.dirname(pid.exe())
+        except psutil.Error:
+            logger.exception("Could not get Steam path from its process.")
 
-    try:
-        reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
-        return os.path.normpath(winreg.QueryValueEx(reg_key, r'SteamPath')[0])
-    except WindowsError:
-        logger.exception("Could not query registry for Steam path")
-        return os.curdir
+    if winreg:
+        try:
+            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam')
+            return os.path.normpath(winreg.QueryValueEx(reg_key, r'SteamPath')[0])
+        except WindowsError:
+            logger.exception("Could not query registry for Steam path")
+
+    return os.curdir
 
 
 def bindable(key):

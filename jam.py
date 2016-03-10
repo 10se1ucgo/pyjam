@@ -14,10 +14,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
-import sys
-import os
-import logging
+import argparse
 import json
+import logging
+import os
+import platform
+import sys
 import traceback
 
 import wx  # Tested w/ wxPhoenix 3.0.3
@@ -25,9 +27,8 @@ import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest
 from ObjectListView import ColumnDefn, ObjectListView
 
 import ffmpeg
-import jam_tools
 import jam_about
-import jam_downloader
+import jam_tools
 
 # If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
@@ -41,8 +42,8 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam", size=(600, 400))
-        self.SetMinSize(self.GetSize())
         panel = MainPanel(self)
+        self.SetMinSize(self.GetSize())
 
         file_menu = wx.Menu()
         settings = file_menu.Append(wx.ID_SETUP, "&Settings", "pyjam Setup")
@@ -63,7 +64,7 @@ class MainFrame(wx.Frame):
         self.SetIcon(icon)
 
         self.Bind(wx.EVT_MENU, panel.settings, settings)
-        self.Bind(wx.EVT_MENU, lambda x: jam_about.about_info(self), about)
+        self.Bind(wx.EVT_MENU, lambda x: jam_about.about_dialog(self), about)
         self.Bind(wx.EVT_MENU, lambda x: jam_about.Licenses(self), licenses)
         self.Show()
 
@@ -175,7 +176,10 @@ class MainPanel(wx.Panel):
             do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION)
 
             if do_download.ShowModal() == wx.ID_YES:
-                url = "http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
+                if platform.architecture()[0] == '64bit':
+                    url = "http://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z"
+                else:
+                    url = "http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
                 ffmpeg.FFmpegDownloader(self, url)
 
             else:
@@ -199,7 +203,9 @@ class MainPanel(wx.Panel):
             self.game_select(event=None)
 
     def download(self, event):
-        jam_downloader.AudioDownloaderDialog(self)
+        # youtube-dl takes a long time to load, and it hinders start up time :/
+        import jam_downloader
+        jam_downloader.DownloaderDialog(self)
 
     def list_right_click(self, event):
         self.selected_track = event.GetIndex()
@@ -224,7 +230,7 @@ class MainPanel(wx.Panel):
         self.write_track_data("aliases", '')
 
     def set_bind(self, event):
-        dialog = wx.Dialog(self, title="pyjam")
+        dialog = wx.Dialog(parent=self, title="pyjam")
 
         bind_text = wx.StaticText(parent=dialog, label="Key:")
         bind_choice = wx.ComboBox(parent=dialog, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
@@ -244,7 +250,7 @@ class MainPanel(wx.Panel):
 
         dialog.SetSizerAndFit(top_sizer)
         dialog.Center()
-        dialog.Show()
+        dialog.ShowModal()
 
     def clear_bind(self, event):
         self.write_track_data("bind", '')
@@ -258,6 +264,7 @@ class MainPanel(wx.Panel):
         track_obj = self.track_list.GetObjects()[self.selected_track]
 
         data_path = os.path.join(self.game.audio_dir, 'track_data.json')
+        logger.info("Writing track data to {path}".format(path=data_path))
         try:
             with open(data_path) as f:
                 track_data = json.load(f)
@@ -265,8 +272,9 @@ class MainPanel(wx.Panel):
             track_data = {}
         except (IOError, ValueError):
             track_data = {}
-            logging.exception("Invalid trackdata for {path}".format(path=data_path))
+            logger.exception("Invalid trackdata for {path}".format(path=data_path))
 
+        # Remove duplicate track data.
         # This only really works for binds, because they're strings. Unless somehow your aliases are the exact same.
         for track, values in track_data.items():
             try:
@@ -362,14 +370,15 @@ class SetupDialog(wx.Dialog):
         button_sizer.Add(new_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         button_sizer.Add(remove_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Reproduced by commenters at:
-        # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind. Probably intentional.
-        self.relay_choice.Bind(wx.EVT_KEY_DOWN, jam_tools.key_choice_override, self.relay_choice)
-        self.play_choice.Bind(wx.EVT_KEY_DOWN, jam_tools.key_choice_override, self.play_choice)
-        self.Bind(wx.EVT_COMBOBOX, self.update_profile, self.profile)
-        self.Bind(wx.EVT_BUTTON, self.save, id=wx.ID_SAVE)
-        self.Bind(wx.EVT_BUTTON, self.new, id=wx.ID_NEW)
-        self.Bind(wx.EVT_BUTTON, self.remove, id=wx.ID_REMOVE)
+        # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Very likely intentional.
+        # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind.
+        self.relay_choice.Bind(wx.EVT_KEY_DOWN, handler=jam_tools.key_choice_override, source=self.relay_choice)
+        self.play_choice.Bind(wx.EVT_KEY_DOWN, handler=jam_tools.key_choice_override, source=self.play_choice)
+        self.Bind(wx.EVT_COMBOBOX, handler=self.update_profile, source=self.profile)
+        self.Bind(wx.EVT_BUTTON, handler=self.save, id=wx.ID_SAVE)
+        self.Bind(wx.EVT_BUTTON, handler=self.new, id=wx.ID_NEW)
+        self.Bind(wx.EVT_BUTTON, handler=self.remove, id=wx.ID_REMOVE)
+
         self.SetSizerAndFit(top_sizer)
         self.update_profile(event=None)
         self.Center()
@@ -409,6 +418,7 @@ class SetupDialog(wx.Dialog):
         self.games.append(jam_tools.Game(name=name, audio_dir='audio'))
         config.set_games(self.games)
         config.save()
+
         self.profile.SetSelection(self.profile.GetCount() - 1)
         self.update_profile(event=None)
         logger.info("New game created: {name}".format(name=name))
@@ -444,23 +454,24 @@ class SetupDialog(wx.Dialog):
         self.profile.SetSelection(0)
         self.update_profile(event=None)
 
-        logger.info("Game removed: {name}".format(name=name))
+        logger.debug("Game removed: {name}".format(name=name))
 
 
 def start_logger():
+    debug = parse_args().debug
     _logger = logging.getLogger('jam')
-    _logger.setLevel(logging.INFO)
+    _logger.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
 
     stream_log = logging.StreamHandler(sys.stdout)
-    stream_log.setLevel(logging.INFO)
+    stream_log.setLevel(logging.DEBUG if debug else logging.INFO)
     stream_log.setFormatter(formatter)
     _logger.addHandler(stream_log)
 
     try:
         file_log = logging.FileHandler(filename='pyjam.log')
-        file_log.setLevel(logging.INFO)
+        file_log.setLevel(logging.DEBUG if debug else logging.WARNING)
         file_log.setFormatter(formatter)
         _logger.addHandler(file_log)
     except (OSError, IOError):
@@ -478,14 +489,24 @@ def exception_hook(error, value, trace):
     error_message = ''.join(traceback.format_exception(error, value, trace))
     logger.critical(error_message)
     error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
-                                    message="An error has occured\n" + error_message,
-                                    caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
-    error_dialog.ShowModal()
-    error_dialog.Destroy()
+                                    message="An error has occured!\n\n" + error_message,
+                                    caption="ERROR!", style=wx.OK | wx.CANCEL | wx.ICON_ERROR)
+    error_dialog.SetOKCancelLabels("Ignore", "Quit")
+    if error_dialog.ShowModal() == wx.ID_OK:
+        error_dialog.Destroy()
+    else:
+        error_dialog.Destroy()
+        sys.exit(1)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", help="Write extra debug output to file.", action="store_true")
+    return parser.parse_args()
+
 
 if __name__ == '__main__':
-    wx_app = wx.App(redirect=0)
-    # We call these after the wx.App because they call some wx Dialogs and what not.
+    wx_app = wx.App()
     logger = start_logger()
     sys.excepthook = exception_hook
     config = jam_tools.Config('jamconfig.json')

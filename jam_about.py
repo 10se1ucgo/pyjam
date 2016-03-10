@@ -22,7 +22,7 @@ import wx.adv
 __version__ = "1.0"
 
 
-def about_info(parent):
+def about_dialog(parent):
     license_text = """
     Copyright (C) 10se1ucgo 2016
 
@@ -39,17 +39,17 @@ def about_info(parent):
     You should have received a copy of the GNU General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>."""
 
-    about_pg = wx.adv.AboutDialogInfo()
-    about_pg.SetName("pyjam")
-    about_pg.SetVersion("v{v}".format(v=__version__))
-    about_pg.SetCopyright("Copyright (C) 10se1ucgo 2016")
-    about_pg.SetDescription("An open source, cross-platform audio player for Source and GoldSrc engine based games.")
-    about_pg.SetWebSite("https://github.com/10se1ucgo/pyjam", "GitHub repo")
-    about_pg.AddDeveloper("10se1ucgo")
-    about_pg.AddDeveloper("Dx724")
-    about_pg.AddArtist("Dx724 - Icon")
-    about_pg.SetLicense(license_text)
-    wx.adv.AboutBox(about_pg, parent)
+    about_info = wx.adv.AboutDialogInfo()
+    about_info.SetName("pyjam")
+    about_info.SetVersion("v{v}".format(v=__version__))
+    about_info.SetCopyright("Copyright (C) 10se1ucgo 2016")
+    about_info.SetDescription("An open source, cross-platform audio player for Source and GoldSrc engine based games.")
+    about_info.SetWebSite("https://github.com/10se1ucgo/pyjam", "GitHub repository")
+    about_info.AddDeveloper("10se1ucgo")
+    about_info.AddDeveloper("Dx724")
+    about_info.AddArtist("Dx724 - Icon")
+    about_info.SetLicense(license_text)
+    wx.adv.AboutBox(about_info, parent)
 
 
 class Licenses(wx.Dialog):
@@ -185,6 +185,9 @@ class Licenses(wx.Dialog):
         ffmpeg_text = wx.StaticText(self.scrolled_panel, label=ffmpeg_info)
         ffmpeg_text.SetFont(mono_font)
 
+        yt_dl_text = wx.StaticText(self.scrolled_panel, label=("pyjam also uses youtube-dl. youtube-dl is released "
+                                                               "under public domain"))
+
         meme_text = wx.StaticText(self.scrolled_panel, label=("Special 'drop dead' to my best friends s1zZLe && xioner "
                                                               "for their support and care <3"))
 
@@ -198,11 +201,11 @@ class Licenses(wx.Dialog):
         self.scroll_sizer.Add(seven_text, 0, wx.EXPAND | wx.ALL, 3)
         self.scroll_sizer.Add(ffmpeg, 0, wx.ALL, 2)
         self.scroll_sizer.Add(ffmpeg_text, 0, wx.EXPAND | wx.ALL, 3)
+        self.scroll_sizer.Add(yt_dl_text, 0, wx.ALL, 2)
         self.scroll_sizer.Add(meme_text, 0, wx.ALL, 2)
         self.top_sizer.Add(self.scrolled_panel, 1, wx.EXPAND)
 
         self.SetSizerAndFit(self.top_sizer)
         self.scrolled_panel.SetSizerAndFit(self.scroll_sizer)
-        self.scrolled_panel.SetAutoLayout(True)
         self.scrolled_panel.SetupScrolling()
         self.Show()

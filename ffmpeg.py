@@ -38,6 +38,7 @@ try:
 except ImportError:
     from shutilwhich import which
 
+logger = logging.getLogger('jam.ffmpeg')
 ENCODER_START = 36
 ENCODER_LEN = 34
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
@@ -66,9 +67,9 @@ class FFmpegDownloaderThread(threading.Thread):
         self._abort = threading.Event()
 
         self.daemon = True
-        self.start()
 
     def abort(self):
+        logger.debug("Aborting FFmpeg downloader thread.")
         self._abort.set()
 
     def is_aborted(self):
@@ -88,10 +89,14 @@ class FFmpegDownloaderThread(threading.Thread):
                 try:
                     chunk = next(data_chunks)
                     file_size_dl += len(chunk)
+                    logger.debug("FFmpeg downloader: Downloaded chunk: {chunk}".format(chunk=len(chunk)))
+                    logger.debug("FFmpeg downloader: Total downloaded so far: {total}".format(total=file_size_dl))
+                    logger.debug("FFmpeg downloader: Remaining: {r}".format(r=self.file_size - file_size_dl))
                     if chunk:
                         f.write(chunk)
                         f.flush()
-                        os.fsync(f.fileno())
+                        # This makes the download super slow.
+                        # os.fsync(f.fileno())
                     wx.CallAfter(self.parent.update, message=file_size_dl)
                 except StopIteration:
                     wx.CallAfter(self.parent.complete)
@@ -100,18 +105,20 @@ class FFmpegDownloaderThread(threading.Thread):
 
 class FFmpegDownloader(wx.ProgressDialog):
     def __init__(self, parent, url):
-        file_size = int(requests.head(url).headers["Content-Length"])
-        super(FFmpegDownloader, self).__init__(title="Download in progress", message="Downloading FFmpeg...",
-                                               maximum=file_size // 1024, parent=parent, style=PD_STYLE)
+        self.file_size = int(requests.head(url).headers["Content-Length"])
+        super(FFmpegDownloader, self).__init__(title="pyjam FFmpeg Downloader", message="Downloading FFmpeg...",
+                                               maximum=self.file_size // 1024, parent=parent, style=PD_STYLE)
 
-        self.downloader = FFmpegDownloaderThread(parent=self, url=url, file_size=file_size)
+        self.downloader = FFmpegDownloaderThread(parent=self, url=url, file_size=self.file_size)
+        self.downloader.start()
 
     def update(self, message):
-        if self:  # True PD has not been destroyed.
+        if self and self.downloader.isAlive():  # True PD has not been destroyed.
             if not self.Update(value=message // 1024)[0]:
                 # Cancel button pressed
                 self.downloader.abort()
-                logging.info("FFmpeg download canceled.")
+                self.downloader.join()
+                logger.info("FFmpeg download canceled.")
 
                 alert = wx.MessageDialog(parent=self, message="Aborted! FFmpeg was not downloaded.", caption="pyjam",
                                          style=wx.ICON_EXCLAMATION)
@@ -122,7 +129,7 @@ class FFmpegDownloader(wx.ProgressDialog):
 
     def complete(self):
         if self:
-            logging.info("FFmpeg download complete.")
+            logger.info("FFmpeg download complete.")
 
             if seven_zip.find() is None:
                 message_str = "FFmpeg was downloaded succesfully!\nPlease extract it. (bin/ffmpeg.7z)"
@@ -146,16 +153,16 @@ class FFmpegConvertThread(threading.Thread):
         self.vol = vol
         self.songs = songs
         self.converted = 0
-        self._running = threading.Event()
+        self._abort = threading.Event()
 
         self.daemon = True
-        self.start()
 
     def abort(self):
-        self._running.set()
+        logger.debug("Aborting FFmpeg converter thread.")
+        self._abort.set()
 
     def is_aborted(self):
-        return self._running.isSet()
+        return self._abort.isSet()
 
     @wrap_exceptions
     def run(self):
@@ -165,7 +172,9 @@ class FFmpegConvertThread(threading.Thread):
             try:
                 track = next(tracks)
                 file = os.path.join(self.dest, os.path.splitext(os.path.basename(track))[0])
-                logger.info("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
+                logger.debug("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
+                logger.debug("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
+                logger.debug("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
                                                                                                 rate=self.rate,
                                                                                                 vol=self.vol))
                 convert = convert_audio(track, file, self.rate, self.vol)
@@ -181,8 +190,9 @@ class FFmpegConvertThread(threading.Thread):
                 wx.CallAfter(self.parent.complete, message=errors)
                 break
 
+    @wrap_exceptions
     def strip_encoder(self, file):
-        logger.info("Stripping metadata from {file}".format(file=file + '.wav'))
+        logger.debug("Stripping metadata from {file}".format(file=file + '.wav'))
         with open(file + '.wav', 'rb') as f:
             wav = bytearray(f.read())
         del wav[ENCODER_START:ENCODER_START + ENCODER_LEN]
@@ -261,6 +271,7 @@ class FFmpegConvertDialog(wx.Dialog):
 
         self.converter = FFmpegConvertThread(parent=self, dest=self.out_dir.GetPath(), rate=self.game_rate.GetValue(),
                                              vol=self.volume.GetValue(), songs=songs)
+        self.converter.start()
 
     def update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.num_songs)
@@ -276,8 +287,8 @@ class FFmpegConvertDialog(wx.Dialog):
                 alert.ShowModal()
                 alert.Destroy()
 
-                logging.info("Audio conversion canceled canceled.")
-                logging.info(progress)
+                logger.info("Audio conversion canceled canceled.")
+                logger.info(progress)
                 # wx.CallAfter(self.progress_dialog.Destroy)
 
     def complete(self, message):
@@ -300,7 +311,7 @@ class FFmpegConvertDialog(wx.Dialog):
                 error_dialog.Destroy()
                 logger.critical("Error converting these files\n{errors}".format(errors=errors))
 
-            logging.info(done_string)
+            logger.info(done_string)
             wx.CallAfter(self.progress_dialog.Destroy)
 
 
@@ -319,5 +330,3 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
     cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
     return subprocess.call(cmd)
-
-logger = logging.getLogger('jam.ffmpeg')

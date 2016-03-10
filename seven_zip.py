@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 
-# Does this need to be its own file?
+# An interface to 7zip
 from subprocess import call
 
 try:
