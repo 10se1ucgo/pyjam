@@ -41,9 +41,9 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
 class MainFrame(wx.Frame):
     def __init__(self):
-        super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam", size=(600, 400))
+        super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam")
         panel = MainPanel(self)
-        self.SetMinSize(self.GetSize())
+        self.SetSize((600, 400))
 
         file_menu = wx.Menu()
         settings = file_menu.Append(wx.ID_SETUP, "&Settings", "pyjam Setup")
@@ -72,7 +72,7 @@ class MainFrame(wx.Frame):
 class MainPanel(wx.Panel):
     def __init__(self, parent):
         super(MainPanel, self).__init__(parent)
-        self.parent_frame = parent
+        self.parent = parent
         self.games = config.get_games()
         self.game = None
         self.game_watcher = None
@@ -122,6 +122,7 @@ class MainPanel(wx.Panel):
         top_sizer.Add(profile_sizer, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(olv_sizer, 1, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 5)
+        top_sizer.SetSizeHints(self.parent)
         self.SetSizerAndFit(top_sizer)
 
         # Context menu
@@ -144,6 +145,8 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, handler=self.set_bind, source=set_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_bind, source=clear_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_all, source=clear_all)
+
+        self.Bind(wx.EVT_SIZE, handler=self.on_size)
 
     def game_select(self, event):
         self.game = self.games[self.profile.GetSelection()]
@@ -300,6 +303,10 @@ class MainPanel(wx.Panel):
         self.profile.SetSelection(0)
         self.game_select(event=None)
 
+    def on_size(self, event):
+        if self.GetAutoLayout():
+            self.Layout()
+
 
 class SetupDialog(wx.Dialog):
     def __init__(self, parent):
@@ -407,7 +414,7 @@ class SetupDialog(wx.Dialog):
 
     def new(self, event):
         # type: (int) -> None
-        new_profile = wx.TextEntryDialog(self, "Enter the name of your new game.")
+        new_profile = wx.TextEntryDialog(parent=self, message="Enter the name of your new game.", caption="pyjam")
         if new_profile.ShowModal() != wx.ID_OK:
             new_profile.Destroy()
             return
@@ -415,7 +422,7 @@ class SetupDialog(wx.Dialog):
 
         name = new_profile.GetValue()
         self.profile.Append(name)
-        self.games.append(jam_tools.Game(name=name, audio_dir='audio'))
+        self.games.append(jam_tools.Game(name=name))
         config.set_games(self.games)
         config.save()
 
@@ -433,6 +440,7 @@ class SetupDialog(wx.Dialog):
         self.game.audio_rate = self.game_rate.GetValue()
         self.game.relay_key = self.relay_choice.GetStringSelection()
         self.game.play_key = self.play_choice.GetStringSelection()
+        self.game.use_aliases = self.aliases_box.IsChecked()
         config.set_games(self.games)
         config.save()
         self.games = config.get_games()  # Just in case, to keep it in sync.
@@ -449,6 +457,7 @@ class SetupDialog(wx.Dialog):
         self.games.pop(self.profile.GetSelection())
         config.set_games(self.games)
         config.save()
+        self.games = config.get_games()
 
         self.profile.Set([game.name for game in self.games])
         self.profile.SetSelection(0)

@@ -111,15 +111,16 @@ class Config(object):
     def new(self):
         # this is ugly
         steam = get_steam_path()
+        csgo_path = os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo'))
+        css_path = os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Source/css'))
         default = {'games':
                    [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': 22050,
                      'name': 'Counter-Strike: Global Offensive',
-                     'mod_path':
-                     os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')),
+                     'mod_path': csgo_path if steam != os.curdir else os.curdir,
                      'play_key': 'F8', 'relay_key': '='},
                     {'audio_dir': 'audio/css', 'use_aliases': True, 'audio_rate': 11025,
                      'name': 'Counter-Strike: Source',
-                     'mod_path': os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Source/css')),
+                     'mod_path': css_path if steam != os.curdir else os.curdir,
                      'play_key': 'F8', 'relay_key': '='}],
                    'steam_path': steam}
 
