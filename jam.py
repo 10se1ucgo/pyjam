@@ -491,6 +491,9 @@ def start_logger():
         error_dialog.Destroy()
         _logger.exception("Could not create log file.")
 
+    _logger.info("Python {version} on {platform}".format(version=sys.version, platform=sys.platform))
+    _logger.info(platform.uname())
+
     return _logger
 
 
