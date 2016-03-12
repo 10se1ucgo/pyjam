@@ -93,8 +93,9 @@ As of 2/21/16, it works!
 
 
 # KNOWN ISSUES
-Config editor doesn't correctly save config on Linux. (Tested on latest version of Linux Mint as of 2/28)
-Workaround: Edit jamconfig.json manually.
+~~Config editor doesn't correctly save config on Linux. (Tested on latest version of Linux Mint as of 2/28)~~
+~~Workaround: Edit jamconfig.json manually.~~
+It's working on Debian 8. I'm not sure what's happening to Mint.
 
 
 
