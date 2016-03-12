@@ -63,9 +63,10 @@ class MainFrame(wx.Frame):
             icon = wx.Icon('pyjam.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
-        self.Bind(wx.EVT_MENU, panel.settings, settings)
-        self.Bind(wx.EVT_MENU, lambda x: jam_about.about_dialog(self), about)
-        self.Bind(wx.EVT_MENU, lambda x: jam_about.Licenses(self), licenses)
+        self.Bind(wx.EVT_MENU, handler=panel.settings, source=settings)
+        self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.about_dialog(self), source=about)
+        self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.Licenses(self), source=licenses)
+        self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
         self.Show()
 
 
@@ -147,6 +148,7 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, handler=self.clear_all, source=clear_all)
 
         self.Bind(wx.EVT_SIZE, handler=self.on_size)
+        self.Bind(wx.EVT_CLOSE, handler=self.on_exit)
 
     def game_select(self, event):
         self.game = self.games[self.profile.GetSelection()]
@@ -306,6 +308,11 @@ class MainPanel(wx.Panel):
     def on_size(self, event):
         if self.GetAutoLayout():
             self.Layout()
+
+    def on_exit(self, event):
+        if self.game_watcher:
+            self.game_watcher.stop()
+        event.Skip()
 
 
 class SetupDialog(wx.Dialog):
