@@ -1,152 +1,159 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html>
+
   <head>
-    <meta charset="UTF-8">
-    <title>pyjam by 10se1ucgo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="pyjam : An open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>pyjam</title>
   </head>
+
   <body>
-    <section class="page-header">
-      <h1 class="project-name">pyjam</h1>
-      <h2 class="project-tagline">An open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python</h2>
-      <a href="https://github.com/10se1ucgo/pyjam" class="btn">View on GitHub</a>
-      <a href="https://github.com/10se1ucgo/pyjam/zipball/master" class="btn">Download .zip</a>
-      <a href="https://github.com/10se1ucgo/pyjam/tarball/master" class="btn">Download .tar.gz</a>
-    </section>
 
-    <section class="main-content">
-      <p>Note: This page is 'placeholder' for now. I'll fill it up with real info later.</p>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/10se1ucgo/pyjam">View on GitHub</a>
 
-<h2>
-<a id="pyjam" class="anchor" href="#pyjam" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>pyjam</h2>
+          <h1 id="project_title">pyjam</h1>
+          <h2 id="project_tagline">An open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/10se1ucgo/pyjam/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/10se1ucgo/pyjam/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="pyjam" class="anchor" href="#pyjam" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>pyjam</h1>
 
 <p><img src="http://i.imgur.com/ic7toeV.png" alt="header image"></p>
 
 <p>pyjam is an open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python</p>
 
-<h2>
-<a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>REQUIREMENTS</h2>
+<h1>
+<a id="features" class="anchor" href="#features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>FEATURES</h1>
 
 <ul>
-<li>Tested on CPython 3.5. 2.7+ should work.</li>
+<li>Cross-platform -- Supports (in theory) Windows, GNU/Linux and OSX!</li>
+<li>Open source -- Licensed under the GNU General Public License, v3.</li>
+<li>Native GUI -- wxMSW on Windows, wxGTK on GNU/Linux, wxMAC on OSX</li>
+<li>Easy to use settings dialog</li>
+<li>Track aliases -- select tracks by name instead of index!
+
+<ul>
+<li>Set custom track aliases (generated from track name by default)</li>
+</ul>
+</li>
+<li>Custom binds -- select tracks with a keybind</li>
 <li>
-<a href="https://github.com/wxWidgets/Phoenix">wxPython Phoenix</a> - GUI
-
-<ul>
-<li>Compiling for Python 3.5 is a bit broken. <a href="https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e">Patch + a wheel for CPython 3.5 x64 can be found here</a>
-</li>
-</ul>
+<strong><em>Built-in audio converter</em></strong> -- uses <a href="https://ffmpeg.org/"><code>FFmpeg</code></a>
 </li>
 <li>
-<a href="https://pypi.python.org/pypi/ObjectListView">ObjectListView</a> - wx.ListCtrl wrapper (much easier to use)</li>
+<strong><em>Built-in audio downloader!</em></strong> -- <a href="https://github.com/rg3/youtube-dl"><code>youtube-dl</code></a> (supports MANY (hundreds) websites, <a href="https://rg3.github.io/youtube-dl/supportedsites.html">full list here</a>)</li>
+</ul>
+
+<h1>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>USAGE</h1>
+
+<ol>
+<li>Download the latest version from the <a href="https://github.com/10se1ucgo/pyjam/releases"><code>Releases</code></a> tab</li>
+<li>Launch <code>pyjam</code> and go to <code>File&gt;Settings</code>
+
+<ol>
+<li>Browse for your Steam path into the <code>Path to Steam</code> option. 
+
+<ul>
+<li>The program will try to guess where Steam is beforehand and may be filled out</li>
+</ul>
+</li>
+<li>Enter the name into the <code>Profile/game name</code> option. 
+
+<ul>
+<li>It's simply used as a profile name and the name does not matter.</li>
+</ul>
+</li>
+<li>Browse for the folder of the game into the <code>Game path</code> option. 
+
+<ul>
 <li>
-<a href="https://pypi.python.org/pypi/watchdog">watchdog</a> - Cross-platform file system monitoring</li>
-</ul>
-
-<h2>
-<a id="backwards-compatibility" class="anchor" href="#backwards-compatibility" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Backwards compatibility</h2>
-
-<ul>
-<li>
-<a href="https://pypi.python.org/pypi/shutilwhich">shutilwhich</a> - Backport of shutil.which() for Python &lt;3.3</li>
-</ul>
-
-<h2>
-<a id="todo" class="anchor" href="#todo" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>TODO</h2>
-
-<ul>
-<li>[x] Base UI stuff
-
-<ul>
-<li>[x] Track list (ObjectListView)</li>
-<li>[x] Switch between games</li>
-<li>[x] Allow for custom aliases
-
-<ul>
-<li>[x] GUI for implementing custom <del>aliases</del> track data</li>
-<li>right click on track&gt;context menu&gt;set [track data]</li>
-<li>[x] Format for custom <del>aliases</del> track data</li>
-<li>
-<code>{"song1": {"aliases": ["alias1", "alias2", "etc"], bind: "KP_DEL"}}</code> etc.
-
-<ul>
-<li>[x] Read format</li>
-<li>[x] Write format</li>
-</ul>
+<strong><em>BE SURE TO INCLUDE THE MOD FOLDER IN THERE AS WELL</em></strong>, e.g., <code>/Steam/steamapps/common/Team Fortress 2/tf2/</code>
 </li>
 </ul>
 </li>
-</ul>
-</li>
-<li>[x] Get the actual playing audio part of the program working
+<li>Browse for the path of the audio folder you want for this game into the <code>Audio path</code> option.</li>
+<li>Enter the audio rate of that game into the <code>Audio rate</code> option.
 
 <ul>
-<li>[x] Write the initial configs</li>
-<li>[x] Watch 'jam_cmd.cfg' for updates and poll for requested song</li>
-<li>[x] Copy requested song to root dir</li>
+<li>Normally, this is 11025.</li>
+<li>However, CS:GO uses the CELT audio codec, so use 22050 if creating a CS:GO profile. (Higher quality!)</li>
 </ul>
 </li>
-<li>[x] Implement a config editor
+<li>Select a key for the <code>Relay key</code> option.
 
 <ul>
-<li>[x] Base reading and writing</li>
-<li>[x] Support all fields</li>
-<li>[x] Make it pretty.</li>
+<li>For quick selection, click on the drop down arrow and press a key on your keyboard to select a key</li>
+<li>The default option usually works just fine (unless you have a bind that uses <code>=</code>)</li>
 </ul>
 </li>
-<li>[ ] Implement an audio converter
+<li>Select a key for the <code>Play key</code> option.
 
 <ul>
-<li>[x] FFmpeg downloader</li>
-<li>[x] FFmpeg convert command</li>
-<li>[ ] GUI for accessing converter</li>
+<li>For quick selection, click on the drop down arrow and press a key on your keyboard to select a key</li>
 </ul>
 </li>
-<li>[ ] Implement audio downloading?
+<li>Select whether or not you want to use aliases.
 
 <ul>
-<li>[ ] youtube-dl</li>
-<li>[ ] GUI for accessing downloader</li>
+<li>Aliases allow for you to select songs in console using words instead of an index number</li>
+<li>Disable if you think there might be conflicts.</li>
 </ul>
 </li>
+<li>Press <code>Save game</code>, and then exit the dialog.</li>
+<li>Congratulations! Your first game has been set up.</li>
+</ol>
+</li>
+<li>Put in your audio!
+
+<ol>
+<li>If you already have audio converted and ready to go, drop them into the audio folder you designated for the game</li>
+<li>Otherwise, if you have audio downloaded, but not converted, use the <code>Audio converter</code> to convert them to the proper format</li>
+<li>If you don't have an audio at all, use the <code>Audio downloader</code> and download from your favorite streaming sites!</li>
+<li>Lastly, hit the <code>Refresh tracks</code> button in order to make sure that pyjam has detected all of your songs.</li>
+</ol>
+</li>
+<li>Ready? Press <code>Start</code>, and load up your game.
+
+<ul>
+<li>If pyjam is not immediately loaded when you start the game, type <code>exec jam.cfg</code> in console to fix that.</li>
 </ul>
-
-<h2>
-<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>LICENSE</h2>
-
-<pre><code>Copyright (C) 10se1ucgo 2016
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
-</code></pre>
+</li>
+<li>Have fun!</li>
+</ol>
 
 <h1>
 <a id="thanks" class="anchor" href="#thanks" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>THANKS</h1>
 
 <p>Thanks to Dx724 for the wonderful icon.</p>
+      </section>
+    </div>
 
-      <footer class="site-footer">
-        <span class="site-footer-owner"><a href="https://github.com/10se1ucgo/pyjam">pyjam</a> is maintained by <a href="https://github.com/10se1ucgo">10se1ucgo</a>.</span>
-
-        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">pyjam maintained by <a href="https://github.com/10se1ucgo">10se1ucgo</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
       </footer>
+    </div>
 
-    </section>
+    
 
-  
   </body>
 </html>
