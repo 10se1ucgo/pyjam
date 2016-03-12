@@ -2,18 +2,22 @@ Please fill out the following: (remove this line when finished)
 
 **ISSUE:**
 
-For a bug:
-	* A general explanation of what happened
-	* A general explanation of what you expected to happen.
-	* Steps to reproduce:
-		1. Step 1: blah
-		2. Step 2: blah blah
-		3. Step 3: etc.
-For a feature request:
-	* A general explanation of what you want.
-	* A general explanation of why you want it.
-Anything else:
-	* Spit it out!
+*For a bug*:
+  * A general explanation of what happened
+  * A general explanation of what you expected to happen.
+  * Steps to reproduce:
+    1. Step 1: blah
+    2. Step 2: blah blah
+    3. Step 3: etc.
+
+*For a feature request*:
+  * A general explanation of what you want.
+  * A general explanation of why you want it.
+
+*Anything else*:
+  * Spit it out!
+
+***ONLY FOR BUGS***:
 
 **INFORMATION:**
 
@@ -24,5 +28,5 @@ Anything else:
 **LOG:**
 
 ```python
-REPLACE THIS WITH PYJAM.LOG
+REPLACE THIS TEXT WITH PYJAM.LOG
 ```
