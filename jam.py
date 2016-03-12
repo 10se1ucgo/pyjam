@@ -180,9 +180,9 @@ class MainPanel(wx.Panel):
 
             if do_download.ShowModal() == wx.ID_YES:
                 if platform.architecture()[0] == '64bit':
-                    url = "http://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z"
+                    url = "https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z"
                 else:
-                    url = "http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
+                    url = "https://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
                 ffmpeg.FFmpegDownloader(self, url)
 
             else:
@@ -480,7 +480,7 @@ def start_logger():
 
     try:
         file_log = logging.FileHandler(filename='pyjam.log')
-        file_log.setLevel(logging.DEBUG if debug else logging.WARNING)
+        file_log.setLevel(logging.DEBUG if debug else logging.INFO)
         file_log.setFormatter(formatter)
         _logger.addHandler(file_log)
     except (OSError, IOError):
