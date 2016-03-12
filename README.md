@@ -59,6 +59,7 @@ As of 2/21/16, it works!
 * [watchdog](https://pypi.python.org/pypi/watchdog) - Cross-platform file system monitoring
 * [youtube-dl](https://github.com/rg3/youtube-dl/) - Audio/Video downloader (supports many websites, not just YouTube)
 * [psutil](https://github.com/giampaolo/psutil) - Process/system utilities  (Used for detecting Steam path)
+* [requests](http://docs.python-requests.org/en/master/)
 
 ## Python <3.3
 * [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which()
