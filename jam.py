@@ -192,14 +192,16 @@ class MainPanel(wx.Panel):
                                  "or inside the /pyjam/bin/ folder. You can download it at:\n\n"
                                  "http://ffmpeg.zeranoe.com/")
 
-                message = wx.MessageDialog(self, download_info, "pyjam")
+                message = wx.MessageDialog(parent=self, message=download_info, caption="pyjam")
                 message.ShowModal()
                 message.Destroy()
 
             do_download.Destroy()
 
         elif ffmpeg.find() is None:
-            message = wx.MessageDialog(self, "You require FFmpeg to convert audio. Please install it.", "pyjam")
+            message = wx.MessageDialog(parent=self,
+                                       message="You require FFmpeg or avconv to convert audio. Please install it.",
+                                       caption="pyjam")
             message.ShowModal()
             message.Destroy()
 
