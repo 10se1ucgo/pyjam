@@ -180,8 +180,9 @@ class FFmpegConvertThread(threading.Thread):
                 try:
                     logger.info(convert_audio(track, file, self.rate, self.vol))
                 except subprocess.CalledProcessError as e:
-                    logging.exception("FFmpeg converter: Couldn't convert {track}".format(track=track))
-                    logging.critical("FFmpeg converter: Error output log\n" + e.output.decode('ascii', 'replace'))
+                    print(e)
+                    logger.exception("FFmpeg converter: Couldn't convert {track}".format(track=track))
+                    logger.critical("FFmpeg converter: Error output log\n" + e.output.decode('ascii', 'replace'))
                     errors.append(track)
                     # File's headers aren't stripped, which normally would increase self.converted by 1.
                     self.converted += 1

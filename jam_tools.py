@@ -23,6 +23,7 @@ import logging
 from string import whitespace, punctuation
 
 import psutil
+import unidecode
 import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -390,6 +391,7 @@ def get_tracks(audio_path):
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         bind = None
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
+        name = unidecode.unidecode(name)
         if name in track_data and ('aliases' in track_data[name] or 'bind' in track_data[name]):
             custom_aliases = track_data[name].get('aliases')
             custom_bind = track_data[name].get('bind')
@@ -419,7 +421,7 @@ def filter_aliases(alias_or_name):
             filtered_name += char.lower()
         elif char in punctuation and not "'":
             filtered_name += ' '
-    return filtered_name.encode('ascii', 'ignore')
+    return filtered_name
 
 
 def get_steam_path():
