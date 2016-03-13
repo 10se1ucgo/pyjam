@@ -276,7 +276,7 @@ class Jam(object):
 
     def poll_song(self, path):
         song = None
-        with open(path) as cfg:
+        with open(path, errors='replace') as cfg:
             for line in cfg:
                 # Get rid of the leading/trailing spaces.
                 line = line.strip()

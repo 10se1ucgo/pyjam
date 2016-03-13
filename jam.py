@@ -443,7 +443,7 @@ class SetupDialog(wx.Dialog):
         self.profile.SetString(self.profile.GetSelection(), self.prof_name.GetValue())
         self.game.name = self.prof_name.GetValue()
         self.game.mod_path = self.game_path.GetPath()
-        self.game.audio_dir = os.path.relpath(self.audio_path.GetPath())
+        self.game.audio_dir = self.audio_path.GetPath()
         self.game.audio_rate = self.game_rate.GetValue()
         self.game.relay_key = self.relay_choice.GetStringSelection()
         self.game.play_key = self.play_choice.GetStringSelection()
