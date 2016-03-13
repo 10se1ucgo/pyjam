@@ -324,7 +324,7 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     # Lazy debugging stuff:
     # logger.write = lambda x: logger.debug(x)
     # cfg = logger
-    with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w', errors='ignore') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
         cfg.write('alias jam_play jam_on\n')
         cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
@@ -352,14 +352,14 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('con_enable 1; showconsole\n')
         cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
         logger.info("Wrote jam.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w', errors='ignore') as cfg:
         for x, track in enumerate(tracks):
             cfg.write('echo "{x}. {name}. Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
         logger.info("Wrote jam_la.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w', errors='ignore') as cfg:
         cfg.write('echo "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_curtrack.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w', errors='ignore') as cfg:
         cfg.write('say "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
 
@@ -419,7 +419,7 @@ def filter_aliases(alias_or_name):
             filtered_name += char.lower()
         elif char in punctuation and not "'":
             filtered_name += ' '
-    return filtered_name
+    return filtered_name.encode('ascii', 'ignore')
 
 
 def get_steam_path():

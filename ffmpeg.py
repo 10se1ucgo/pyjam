@@ -175,10 +175,11 @@ class FFmpegConvertThread(threading.Thread):
                 logger.debug("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
                 logger.debug("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
                 logger.debug("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
-                                                                                                rate=self.rate,
-                                                                                                vol=self.vol))
-                convert = convert_audio(track, file, self.rate, self.vol)
-                if convert != 0:
+                                                                                                 rate=self.rate,
+                                                                                                 vol=self.vol))
+                try:
+                    logger.info(convert_audio(track, file, self.rate, self.vol))
+                except subprocess.CalledProcessError:
                     errors.append(track)
                     # File's headers aren't stripped, which normally would increase self.converted by 1.
                     self.converted += 1
@@ -329,4 +330,4 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     # type: (str, any, any, any, any) -> int
     cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
     cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
-    return subprocess.call(cmd)
+    return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
