@@ -480,10 +480,10 @@ def start_logger():
 
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
 
-    stream_log = logging.StreamHandler(sys.stdout)
-    stream_log.setLevel(logging.DEBUG if debug else logging.INFO)
-    stream_log.setFormatter(formatter)
-    _logger.addHandler(stream_log)
+    stdout_log = logging.StreamHandler(sys.stdout)
+    stdout_log.setLevel(logging.DEBUG)
+    stdout_log.setFormatter(formatter)
+    _logger.addHandler(stdout_log)
 
     try:
         file_log = logging.FileHandler(filename='pyjam.log')

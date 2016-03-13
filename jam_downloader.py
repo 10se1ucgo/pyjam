@@ -34,7 +34,7 @@ class DownloaderThread(threading.Thread):
         self.parent = parent
         self.song_urls = song_urls
         self.opts = opts or {'format': 'bestaudio/best', 'outtmpl': os.path.join(dest, '%(title)s.%(ext)s'),
-                             'progress_hooks': [self.progress_hook], 'no_warnings': True}
+                             'progress_hooks': [self.progress_hook], 'logger': logger}
         self.downloaded = 0
         self._abort = threading.Event()
 
