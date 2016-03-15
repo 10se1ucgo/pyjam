@@ -325,12 +325,12 @@ class FFmpegConvertDialog(wx.Dialog):
         file_dialog = wx.FileDialog(self, message="Select files",
                                     style=wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_FILE_MUST_EXIST, wildcard=wildcard)
         file_dialog.SetDirectory(self.in_dir) if self.in_dir else None
-        if file_dialog.ShowModal() == wx.ID_CANCEL:
+        if file_dialog.ShowModal() != wx.ID_OK:
             file_dialog.Destroy()
             return
         self.in_files = file_dialog.GetPaths()
         self.in_picker.GetTextCtrl().SetValue(str(file_dialog.GetFilenames()).strip('[]'))
-        # self.in_picker.GetTextCtrl().SetValue('"' + '", "'.join(file_dialog.GetFilenames()) + '"')
+        file_dialog.Destroy()
 
 def find():
     # type: () -> str or None
