@@ -234,7 +234,7 @@ class MainPanel(wx.Panel):
         self.write_track_data("aliases", filtered_aliases)
 
     def clear_aliases(self, event):
-        self.write_track_data("aliases", '')
+        self.write_track_data("aliases", None)
 
     def set_bind(self, event):
         dialog = wx.Dialog(parent=self, title="pyjam")
@@ -260,7 +260,7 @@ class MainPanel(wx.Panel):
         dialog.ShowModal()
 
     def clear_bind(self, event):
-        self.write_track_data("bind", '')
+        self.write_track_data("bind", None)
 
     def clear_all(self, event):
         open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
