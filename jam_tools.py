@@ -84,6 +84,8 @@ def wrap_exceptions(func):
         # This should really only be used on threads (main thread has a sys.excepthook)
         try:
             return func(*args, **kwargs)
+        except UnicodeError:
+            pass
         except Exception:
             error_message = ''.join(traceback.format_exc())
             error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),

@@ -180,7 +180,6 @@ class FFmpegConvertThread(threading.Thread):
                 try:
                     logger.info(convert_audio(track, file, self.rate, self.vol))
                 except subprocess.CalledProcessError as e:
-                    print(e)
                     logger.exception("FFmpeg converter: Couldn't convert {track}".format(track=track))
                     logger.critical("FFmpeg converter: Error output log\n" + e.output.decode('ascii', 'replace'))
                     errors.append(track)
@@ -211,6 +210,8 @@ class FFmpegConvertDialog(wx.Dialog):
         super(FFmpegConvertDialog, self).__init__(parent=parent, title="pyjam Audio Converter",
                                                   style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
+        self.in_dir = in_dir
+
         self.game_rate = intctrl.IntCtrl(self)
         game_rate_text = wx.StaticText(self, label="Audio rate")
         if rate is not None:
@@ -219,10 +220,13 @@ class FFmpegConvertDialog(wx.Dialog):
         self.volume = wx.SpinCtrl(self, initial=85)
         volume_text = wx.StaticText(self, label="Volume %")
 
-        self.in_dir = wx.DirPickerCtrl(self, name="Input directory")
-        in_dir_text = wx.StaticText(self, label="Input directory")
-        if in_dir is not None:
-            self.in_dir.SetPath(in_dir)
+        self.in_picker = wx.FilePickerCtrl(self)
+        in_picker_text = wx.StaticText(self, label="Input file names (manually changing them has no effect)")
+        self.in_files = []
+        # the dumbest thing i've done all year (i'm overriding the controls of the PickerBase)
+        for child in self.in_picker.GetChildren():
+            if isinstance(child, wx.Button):
+                child.Bind(wx.EVT_BUTTON, self.browse)
 
         self.out_dir = wx.DirPickerCtrl(self, name="Output directory")
         out_dir_text = wx.StaticText(self, label="Output directory")
@@ -242,8 +246,8 @@ class FFmpegConvertDialog(wx.Dialog):
         vol_sizer.Add(self.volume, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         top_row.Add(rate_sizer)
         top_row.Add(vol_sizer)
-        dir_sizer.Add(in_dir_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
-        dir_sizer.Add(self.in_dir, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
+        dir_sizer.Add(in_picker_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
+        dir_sizer.Add(self.in_picker, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
         dir_sizer.Add(out_dir_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
         dir_sizer.Add(self.out_dir, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
         top_sizer.Add(top_row)
@@ -261,11 +265,9 @@ class FFmpegConvertDialog(wx.Dialog):
         self.ShowModal()
 
     def on_ok(self, event):
-        songs = list(itertools.chain.from_iterable((glob.iglob(os.path.join(self.in_dir.GetPath(), x))
-                                                    for x in FILE_EXTS)))
-        self.num_songs = len(songs)
+        self.num_songs = len(self.in_files)
         if self.num_songs <= 0:
-            alert = wx.MessageDialog(self, "No compatible files in directory!", "pyjam", wx.ICON_EXCLAMATION)
+            alert = wx.MessageDialog(self, "No songs selected!", "pyjam", wx.ICON_EXCLAMATION)
             alert.ShowModal()
             alert.Destroy()
             return
@@ -274,7 +276,7 @@ class FFmpegConvertDialog(wx.Dialog):
                                                  maximum=self.num_songs * 2, parent=self, style=PD_STYLE)
 
         self.converter = FFmpegConvertThread(parent=self, dest=self.out_dir.GetPath(), rate=self.game_rate.GetValue(),
-                                             vol=self.volume.GetValue(), songs=songs)
+                                             vol=self.volume.GetValue(), songs=self.in_files)
         self.converter.start()
 
     def update(self, message):
@@ -318,9 +320,20 @@ class FFmpegConvertDialog(wx.Dialog):
             logger.info(done_string)
             wx.CallAfter(self.progress_dialog.Destroy)
 
+    def browse(self, event):
+        wildcard = "Audio and Video files ({wildcards})|{wildcards}".format(wildcards=';'.join(FILE_EXTS))
+        file_dialog = wx.FileDialog(self, message="Select files",
+                                    style=wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_FILE_MUST_EXIST, wildcard=wildcard)
+        file_dialog.SetDirectory(self.in_dir) if self.in_dir else None
+        if file_dialog.ShowModal() == wx.ID_CANCEL:
+            file_dialog.Destroy()
+            return
+        self.in_files = file_dialog.GetPaths()
+        self.in_picker.GetTextCtrl().SetValue(str(file_dialog.GetFilenames()).strip('[]'))
+        # self.in_picker.GetTextCtrl().SetValue('"' + '", "'.join(file_dialog.GetFilenames()) + '"')
 
 def find():
-    # type: () -> str
+    # type: () -> str or None
     if sys.platform == "win32":
         return which('ffmpeg.exe') or which('bin/ffmpeg.exe') or which('avconv')
     else:
@@ -330,7 +343,9 @@ def find():
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
-    # type: (str, any, any, any, any) -> int
-    cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
-    cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
+    # type: (str, str, int or str, int, str) -> int
+    # cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
+    # cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
+    cmd = [find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
+           '-acodec', codec, '-af', 'volume={vol}'.format(vol=vol/100), dest]
     return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
