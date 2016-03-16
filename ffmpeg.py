@@ -178,7 +178,7 @@ class FFmpegConvertThread(threading.Thread):
                                                                                                  rate=self.rate,
                                                                                                  vol=self.vol))
                 try:
-                    logger.info(convert_audio(track, file, self.rate, self.vol))
+                    logger.info(convert_audio(track, file, self.rate, self.vol).decode('ascii', 'replace'))
                 except subprocess.CalledProcessError as e:
                     logger.exception("FFmpeg converter: Couldn't convert {track}".format(track=track))
                     logger.critical("FFmpeg converter: Error output log\n" + e.output.decode('ascii', 'replace'))
