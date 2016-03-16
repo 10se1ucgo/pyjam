@@ -344,6 +344,7 @@ def find():
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
+    rate = str(rate)
     # type: (str, str, int or str, int, str) -> int
     # cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
     # cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
