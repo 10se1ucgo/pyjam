@@ -506,6 +506,7 @@ def start_logger():
 
     _logger.info("Python {version} on {platform}".format(version=sys.version, platform=sys.platform))
     _logger.info(platform.uname())
+    _logger.info("pyjam version {v}".format(v=jam_tools.__version__))
 
     return _logger
 
