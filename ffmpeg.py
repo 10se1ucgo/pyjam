@@ -220,7 +220,7 @@ class FFmpegConvertDialog(wx.Dialog):
         self.volume = wx.SpinCtrl(self, initial=85)
         volume_text = wx.StaticText(self, label="Volume %")
 
-        self.in_picker = wx.FilePickerCtrl(self)
+        self.in_picker = wx.FilePickerCtrl(self, style=wx.FLP_USE_TEXTCTRL)
         in_picker_text = wx.StaticText(self, label="Input file names (manually changing them has no effect)")
         self.in_files = []
         # the dumbest thing i've done all year (i'm overriding the controls of the PickerBase)
