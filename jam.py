@@ -59,6 +59,8 @@ class MainFrame(wx.Frame):
         menu_bar.Append(help_menu, "&Help")
         self.SetMenuBar(menu_bar)
 
+        self.status_bar = self.CreateStatusBar()
+
         if sys.platform == "win32":
             icon = wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO)
         else:
@@ -164,6 +166,7 @@ class MainPanel(wx.Panel):
             self.game_watcher.start()
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Stop")
+            self.parent.status_bar.SetStatusText('pyjam is currently running')
         else:
             self.start_stop_button.Disable()
             self.start_stop_button.SetLabel("Stopping...")
@@ -171,6 +174,7 @@ class MainPanel(wx.Panel):
             self.game_watcher = None
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Start")
+            self.parent.status_bar.SetStatusText('pyjam is currently stopped')
 
     def refresh(self, event):
         tracks = jam_tools.get_tracks(self.game.audio_dir)
