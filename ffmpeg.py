@@ -17,10 +17,7 @@
 
 # The downloading stuff here is pretty much Windows only.
 from __future__ import division
-from __future__ import unicode_literals
 
-import glob
-import itertools
 import logging
 import os
 import subprocess
