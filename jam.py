@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import unicode_literals
+
 import argparse
 import json
 import logging
@@ -91,7 +93,7 @@ class MainPanel(wx.Panel):
                                    style=wx.CB_READONLY)
         self.profile.SetSelection(0)
 
-        self.track_list = ObjectListView(parent=self, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=False,
+        self.track_list = ObjectListView(parent=self, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=True,
                                          useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
