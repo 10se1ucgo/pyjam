@@ -348,7 +348,7 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
                 for alias in track.aliases:
                     cfg.write('alias {alias} {x}\n'.format(alias=alias, x=x))
             if track.bind:
-                cfg.write('bind {bind} {x}"\n'.format(bind=track.bind, x=x))
+                cfg.write('bind {bind} {x}\n'.format(bind=track.bind, x=x))
         cfg.write('voice_enable 1; voice_modenable 1\n')
         cfg.write('voice_forcemicrecord 0\n')
         cfg.write('voice_fadeouttime 0.0\n')
