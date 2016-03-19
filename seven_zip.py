@@ -16,7 +16,7 @@
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 
 # An interface to 7zip
-from subprocess import call
+import subprocess
 
 try:
     from shutil import which
@@ -30,4 +30,4 @@ def find():
 
 def extract_single(archive, file, dest):
     cmd = "{bin} e -y {archive} -o{dest} {file} -r".format(bin=find(), archive=archive, dest=dest, file=file)
-    call(cmd)
+    subprocess.call(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)

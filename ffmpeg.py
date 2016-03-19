@@ -347,4 +347,4 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     # cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
     cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
            '-acodec', codec, '-ar', rate, '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
-    return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    return subprocess.check_output(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
