@@ -228,7 +228,7 @@ def update_check(parent):
             info = wx.MessageDialog(parent, message="pyjam {v} is now available!\nGo to download page?".format(v=new),
                                     caption="pyjam Update", style=wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             if info.ShowModal() == wx.ID_OK:
-                webbrowser.open_new_tab("https://github.com/10se1ucgo/pyjam/releases/{v}".format(v=new))
+                webbrowser.open_new_tab(r.json()['html_url'])
             info.Destroy()
     except ValueError:
         pass
