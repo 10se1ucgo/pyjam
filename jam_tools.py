@@ -184,7 +184,7 @@ class Config(object):
 class Track(object):
     def __init__(self, name, aliases, path, bind=None):
         self.name = unidecode.unidecode(name)
-        self.aliases = unidecode.unidecode(aliases)
+        self.aliases = [unidecode.unidecode(alias) for alias in aliases]
         self.path = path
         self.bind = bind
 
