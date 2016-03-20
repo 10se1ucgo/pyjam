@@ -25,6 +25,7 @@ import traceback
 import wx  # Tested w/ wxPhoenix 3.0.3
 import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest version of wxPython-Pheonix!
 from ObjectListView import ColumnDefn, ObjectListView
+from unidecode import unidecode
 
 import ffmpeg
 import jam_about
@@ -487,7 +488,7 @@ def start_logger():
     _logger = logging.getLogger('jam')
     _logger.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
+    formatter = logging.Formatter(fmt=unidecode('%(asctime)s %(levelname)s: %(message)s'), datefmt='%H:%M:%S')
 
     stdout_log = logging.StreamHandler(sys.stdout)
     stdout_log.setLevel(logging.DEBUG)

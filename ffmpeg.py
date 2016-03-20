@@ -330,14 +330,17 @@ class FFmpegConvertDialog(wx.Dialog):
         self.in_picker.GetTextCtrl().SetValue(str(file_dialog.GetFilenames()).strip('[]'))
         file_dialog.Destroy()
 
+
 def find():
     # type: () -> str or None
     if sys.platform == "win32":
-        return which('ffmpeg.exe') or which('bin/ffmpeg.exe') or which('avconv')
+        ff = which('ffmpeg.exe') or which('bin/ffmpeg.exe') or which('avconv')
     else:
         # ~~I don't know if this works.~~
         # Tested on VM, it worked on Linux Mint.
-        return which('ffmpeg') or which('bin/ffmpeg') or which('avconv')
+        ff = which('ffmpeg') or which('bin/ffmpeg') or which('avconv')
+
+    return os.path.normpath(ff) if ff else None
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):

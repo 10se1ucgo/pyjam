@@ -20,13 +20,14 @@ import traceback
 import glob
 import json
 import logging
+from io import open
 from string import whitespace, punctuation
 
 import psutil
-import unidecode
 import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from unidecode import unidecode
 
 from jam_about import __version__
 
@@ -127,13 +128,13 @@ class Config(object):
                      'play_key': 'F8', 'relay_key': '='}],
                    'steam_path': steam}
 
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, 'w', encoding='utf8') as f:
             json.dump(default, f, indent=4, sort_keys=True)
 
     def load(self):
         # type: () -> str, list
         try:
-            with open(self.config_file) as f:
+            with open(self.config_file, encoding='utf8') as f:
                 try:
                     config_json = json.load(f)
                 except ValueError:
@@ -158,7 +159,7 @@ class Config(object):
             return self.load()
 
     def save(self):
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, 'w', encoding='utf8') as f:
             # config_dict = json.loads(jsonpickle.encode(self, unpicklable=False))
             config_dict = dict(self.__dict__)  # Oh god, I've been removing the actual variable from the class...
             config_dict.pop('config_file')  # Exclude the redundant config_file variable.
@@ -195,13 +196,13 @@ class Track(object):
         return self.bind if self.bind else " "
 
     def __repr__(self):
-        return "{c}(name:{name}, aliases:{aliases}, location:{path})".format(c=self.__class__,
-                                                                             name=self.name,
-                                                                             aliases=self.aliases,
-                                                                             path=self.path)
+        return unidecode("{c}(name:{name}, aliases:{aliases}, location:{path})").format(c=self.__class__,
+                                                                                        name=self.name,
+                                                                                        aliases=self.aliases,
+                                                                                        path=self.path)
 
     def __str__(self):
-        return "Music Track: {name}".format(name=self.name)
+        return unidecode("Music Track: {name}").format(name=self.name)
 
 
 class Game(object):
@@ -240,7 +241,7 @@ class Jam(object):
         self.observer.start()
         write_configs(self.game.mod_path, self.tracks, self.game.play_key, self.game.relay_key, self.game.use_aliases)
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), 'a') as cfg:
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), 'a', encoding='utf8') as cfg:
             cfg.write('\nexec jam\n')
 
     def stop(self):
@@ -256,10 +257,10 @@ class Jam(object):
         except (FileNotFoundError, IOError):
             logger.exception("Could not remove some files:")
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg"))) as cfg:
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), encoding='utf8') as cfg:
             autoexec = cfg.readlines()
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), "w") as cfg:
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/autoexec.cfg")), "w", encoding='utf8') as cfg:
             for line in autoexec:
                 if "exec jam" not in line:
                     cfg.write(line)
@@ -272,14 +273,14 @@ class Jam(object):
             return
 
         shutil.copy(track.path, self.voice)
-        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_curtrack.cfg")), 'w') as cfg:
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_curtrack.cfg")), 'w', encoding='utf8') as cfg:
             cfg.write('echo "pyjam :: Song :: {name}"\n'.format(name=track.name))
-        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_saycurtrack.cfg")), 'w') as cfg:
+        with open(os.path.normpath(os.path.join(self.game.mod_path, "cfg/jam_saycurtrack.cfg")), 'w', encoding='utf8') as cfg:
             cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
 
     def poll_song(self, path):
         song = None
-        with open(path, errors='replace') as cfg:
+        with open(path, encoding='utf8') as cfg:
             for line in cfg:
                 # Get rid of the leading/trailing spaces.
                 line = line.strip()
@@ -327,7 +328,7 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     # Lazy debugging stuff:
     # logger.write = lambda x: logger.debug(x)
     # cfg = logger
-    with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w', errors='ignore') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam.cfg")), 'w', encoding='utf8') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
         cfg.write('alias jam_play jam_on\n')
         cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
@@ -355,14 +356,14 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('con_enable 1; showconsole\n')
         cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
         logger.info("Wrote jam.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w', errors='ignore') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_la.cfg")), 'w', encoding='utf8') as cfg:
         for x, track in enumerate(tracks):
             cfg.write('echo "{x}. {name}. Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
         logger.info("Wrote jam_la.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w', errors='ignore') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_curtrack.cfg")), 'w', encoding='utf8') as cfg:
         cfg.write('echo "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_curtrack.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w', errors='ignore') as cfg:
+    with open(os.path.normpath(os.path.join(path, "cfg/jam_saycurtrack.cfg")), 'w', encoding='utf8') as cfg:
         cfg.write('say "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
 
@@ -371,7 +372,7 @@ def get_tracks(audio_path):
     # type: (str) -> list
     black_list = ['cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
                   'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
-                  'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm']
+                  'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'buy']
     current_tracks = []
     bound_keys = []
 
@@ -382,7 +383,7 @@ def get_tracks(audio_path):
     # }
     logger.info("Generating track list with path {path}".format(path=audio_path))
     try:
-        with open(os.path.join(audio_path, 'track_data.json')) as f:
+        with open(os.path.join(audio_path, 'track_data.json'), encoding='utf8') as f:
             track_data = json.load(f)
     except FileNotFoundError:
         track_data = {}
@@ -393,7 +394,7 @@ def get_tracks(audio_path):
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         bind = None
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
-        name = unidecode.unidecode(name)
+        name = unidecode(name)
         if name in track_data and ('aliases' in track_data[name] or 'bind' in track_data[name]):
             custom_aliases = track_data[name].get('aliases')
             custom_bind = track_data[name].get('bind')
@@ -421,7 +422,7 @@ def filter_aliases(alias_or_name):
     for char in alias_or_name:
         if char.isalpha() or char.isspace():
             filtered_name += char.lower()
-        elif char in punctuation and not "'":
+        elif char is not "'":
             filtered_name += ' '
     return filtered_name
 
