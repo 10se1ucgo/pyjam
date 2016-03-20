@@ -70,6 +70,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.about_dialog(self), source=about)
         self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.Licenses(self), source=licenses)
         self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
+        jam_about.update_check(self)
         self.Show()
 
 

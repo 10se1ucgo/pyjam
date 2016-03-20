@@ -15,6 +15,10 @@
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 
 # jam.py is cluttered enough as is.
+import webbrowser
+from distutils.version import StrictVersion
+
+import requests
 import wx
 import wx.lib.scrolledpanel as sp
 import wx.adv
@@ -209,3 +213,24 @@ class Licenses(wx.Dialog):
         self.scrolled_panel.SetSizerAndFit(self.scroll_sizer)
         self.scrolled_panel.SetupScrolling()
         self.Show()
+
+
+def update_check(parent):
+    r = requests.get('https://api.github.com/repos/10se1ucgo/pyjam/releases/latest')
+
+    if not r.ok:
+        return
+
+    new = r.json()['tag_name']
+
+    try:
+        if StrictVersion(__version__) < StrictVersion(new.lstrip('v')):
+            info = wx.MessageDialog(parent, message="pyjam {v} is now available!\nGo to download page?".format(v=new),
+                                    caption="pyjam Update", style=wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
+            if info.ShowModal() == wx.ID_OK:
+                webbrowser.open_new_tab("https://github.com/10se1ucgo/pyjam/releases/{v}".format(v=new))
+            info.Destroy()
+    except ValueError:
+        pass
+
+
