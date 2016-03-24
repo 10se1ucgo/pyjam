@@ -492,10 +492,11 @@ def start_logger():
 
     formatter = logging.Formatter(fmt=unidecode('%(asctime)s %(levelname)s: %(message)s'), datefmt='%H:%M:%S')
 
-    stdout_log = logging.StreamHandler(sys.stdout)
-    stdout_log.setLevel(logging.DEBUG)
-    stdout_log.setFormatter(formatter)
-    _logger.addHandler(stdout_log)
+    if not hasattr(sys, 'frozen'):
+        stdout_log = logging.StreamHandler(sys.stdout)
+        stdout_log.setLevel(logging.DEBUG)
+        stdout_log.setFormatter(formatter)
+        _logger.addHandler(stdout_log)
 
     try:
         file_log = logging.FileHandler(filename='pyjam.log')

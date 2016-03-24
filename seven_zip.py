@@ -17,6 +17,7 @@
 
 # An interface to 7zip
 import subprocess
+import shlex
 
 try:
     from shutil import which
@@ -30,4 +31,4 @@ def find():
 
 def extract_single(archive, file, dest):
     cmd = "{bin} e -y {archive} -o{dest} {file} -r".format(bin=find(), archive=archive, dest=dest, file=file)
-    subprocess.call(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    subprocess.call(shlex.split(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)

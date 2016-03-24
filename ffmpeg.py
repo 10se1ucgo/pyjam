@@ -175,11 +175,12 @@ class FFmpegConvertThread(threading.Thread):
                 logger.debug("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
                                                                                                  rate=self.rate,
                                                                                                  vol=self.vol))
-                try:
-                    logger.info(convert_audio(track, file, self.rate, self.vol).decode('ascii', 'replace'))
-                except subprocess.CalledProcessError as e:
-                    logger.exception("FFmpeg converter: Couldn't convert {track}".format(track=track))
-                    logger.critical("FFmpeg converter: Error output log\n" + e.output.decode('ascii', 'replace'))
+                p = convert_audio(track, file, self.rate, self.vol)
+                output = p.communicate()  # output[0] is stdout, output[1] is stderr.
+                logger.info(output[0].decode())
+                if p.returncode != 0:
+                    logger.critical("FFmpeg converter: Couldn't convert {track}".format(track=track))
+                    logger.critical("FFmpeg converter: Error output log\n" + output[1].decode())
                     errors.append(track)
                     # File's headers aren't stripped, which normally would increase self.converted by 1.
                     self.converted += 1
@@ -350,4 +351,4 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     # cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
     cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
            '-acodec', codec, '-ar', rate, '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
-    return subprocess.check_output(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)

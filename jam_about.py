@@ -58,7 +58,8 @@ def about_dialog(parent):
 
 class Licenses(wx.Dialog):
     def __init__(self, parent):
-        super(Licenses, self).__init__(parent, title="Licenses", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super(Licenses, self).__init__(parent, title="Licenses", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+                                       size=(600, 400))
 
         self.scrolled_panel = sp.ScrolledPanel(self)
 
@@ -68,8 +69,9 @@ class Licenses(wx.Dialog):
         info = wx.StaticText(self.scrolled_panel, label=("pyjam uses a number of open source software. The following "
                                                          "are the licenses for these software."))
 
-        wxw = wx.StaticText(self.scrolled_panel, label=("pyjam uses wxWidgets and wxPython. Their licenses are below\n"
-                                                        "More info at https://www.wxwidgets.org/about/"))
+        wxw = wx.StaticText(self.scrolled_panel, label=("pyjam uses wxWidgets and wxPython. Their licenses are below.\n"
+                                                        "More info at https://www.wxwidgets.org/about/\n"
+                                                        "pyjam uses ObjectListView. License is also below."))
         wxw_license = """
                   wxWindows Library Licence, Version 3.1
                   ======================================
@@ -189,11 +191,103 @@ class Licenses(wx.Dialog):
         ffmpeg_text = wx.StaticText(self.scrolled_panel, label=ffmpeg_info)
         ffmpeg_text.SetFont(mono_font)
 
+        watchdog = wx.StaticText(self.scrolled_panel, label="pyjam uses watchdog. Copying notice below.")
+        watchdog_notice = """
+    Copyright 2011 Yesudeep Mangalapilly <yesudeep@gmail.com>
+    Copyright 2012 Google, Inc.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License."""
+        watchdog_text = wx.StaticText(self.scrolled_panel, label=watchdog_notice)
+        watchdog_text.SetFont(mono_font)
+
+        psutil = wx.StaticText(self.scrolled_panel, label="pyjam uses psutil. License below.")
+        psutil_license = """
+    psutil is distributed under BSD license reproduced below.
+
+    Copyright (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola'
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without modification,
+    are permitted provided that the following conditions are met:
+
+     * Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+     * Neither the name of the psutil authors nor the names of its contributors
+       may be used to endorse or promote products derived from this software without
+       specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
+        psutil_text = wx.StaticText(self.scrolled_panel, label=psutil_license)
+        psutil_text.SetFont(mono_font)
+
+        requests_info = wx.StaticText(self.scrolled_panel, label="pyjam uses requests. License below.")
+        requests_license = """
+    Copyright 2016 Kenneth Reitz
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+           http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License."""
+        requests_text = wx.StaticText(self.scrolled_panel, label=requests_license)
+        requests_text.SetFont(mono_font)
+
+        unidecode = wx.StaticText(self.scrolled_panel, label="pyjam uses unidecode. License below.")
+        unidecode_license = """
+    Original character transliteration tables:
+
+    Copyright 2001, Sean M. Burke <sburke@cpan.org>, all rights reserved.
+
+    Python code and later additions:
+
+    Copyright 2016, Tomaz Solc <tomaz.solc@tablix.org>
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA."""
+        unidecode_text = wx.StaticText(self.scrolled_panel, label=unidecode_license)
+        unidecode_text.SetFont(mono_font)
+
         yt_dl_text = wx.StaticText(self.scrolled_panel, label=("pyjam also uses youtube-dl. youtube-dl is released "
                                                                "under public domain"))
-
-        meme_text = wx.StaticText(self.scrolled_panel, label=("Special 'drop dead' to my best friends s1zZLe && xioner "
-                                                              "for their support and care <3"))
 
         self.top_sizer = wx.BoxSizer(wx.VERTICAL)
         self.scroll_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -205,11 +299,18 @@ class Licenses(wx.Dialog):
         self.scroll_sizer.Add(seven_text, 0, wx.EXPAND | wx.ALL, 3)
         self.scroll_sizer.Add(ffmpeg, 0, wx.ALL, 2)
         self.scroll_sizer.Add(ffmpeg_text, 0, wx.EXPAND | wx.ALL, 3)
+        self.scroll_sizer.Add(watchdog, 0, wx.ALL, 2)
+        self.scroll_sizer.Add(watchdog_text, 0, wx.EXPAND | wx.ALL, 3)
+        self.scroll_sizer.Add(psutil, 0, wx.ALL, 2)
+        self.scroll_sizer.Add(psutil_text, 0, wx.EXPAND | wx.ALL, 3)
+        self.scroll_sizer.Add(requests_info, 0, wx.ALL, 2)
+        self.scroll_sizer.Add(requests_text, 0, wx.EXPAND | wx.ALL, 3)
+        self.scroll_sizer.Add(unidecode, 0, wx.ALL, 2)
+        self.scroll_sizer.Add(unidecode_text, 0, wx.EXPAND | wx.ALL, 3)
         self.scroll_sizer.Add(yt_dl_text, 0, wx.ALL, 2)
-        self.scroll_sizer.Add(meme_text, 0, wx.ALL, 2)
         self.top_sizer.Add(self.scrolled_panel, 1, wx.EXPAND)
 
-        self.SetSizerAndFit(self.top_sizer)
+        self.SetSizer(self.top_sizer)
         self.scrolled_panel.SetSizerAndFit(self.scroll_sizer)
         self.scrolled_panel.SetupScrolling()
         self.Show()
