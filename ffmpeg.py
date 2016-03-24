@@ -264,8 +264,8 @@ class FFmpegConvertDialog(wx.Dialog):
         self.ShowModal()
 
     def on_ok(self, event):
-        if not os.path.exists(os.path.abspath(self.out_dir.GetPath())):
-            os.mkdir(os.path.abspath(self.out_dir.GetPath()))
+        if not os.path.exists(self.out_dir.GetPath()):
+            os.makedirs(self.out_dir.GetPath())
         self.num_songs = len(self.in_files)
         if self.num_songs <= 0:
             alert = wx.MessageDialog(self, "No songs selected!", "pyjam", wx.ICON_EXCLAMATION)
