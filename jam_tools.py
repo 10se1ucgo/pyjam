@@ -20,7 +20,7 @@ import traceback
 import glob
 import json
 import logging
-from string import whitespace, punctuation
+from string import whitespace
 
 import psutil
 import unidecode
@@ -334,19 +334,20 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('alias jam_off "voice_inputfromfile 0; voice_loopback 0; -voicerecord; alias jam_play jam_on"\n')
         cfg.write('alias jam_writecmd "host_writeconfig jam_cmd"\n')
         cfg.write('alias jam_listaudio "exec jam_la"\n')
-        cfg.write('alias jam_la jam_listaudio\n')
-        cfg.write('alias la jam_listaudio\n')
+        cfg.write('alias jam_la "exec jam_la"\n')
+        cfg.write('alias la "exec jam_la"\n')
         cfg.write('alias jam_saytrack "exec jam_saycurtrack"\n')
-        cfg.write('alias jam_say jam_saytrack\n')
+        cfg.write('alias jam_say "exec jam_saycurtrack"\n')
         cfg.write('alias jam_echotrack "exec jam_curtrack"\n')
-        cfg.write('alias jam_track jam_echotrack\n')
+        cfg.write('alias jam_track "exec jam_curtrack"\n')
         for x, track in enumerate(tracks):
             cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'.format(x=x,
                                                                                                  relay=relay_key,
                                                                                                  name=track.name))
             if use_aliases:
                 for alias in track.aliases:
-                    cfg.write('alias {alias} {x}\n'.format(alias=alias, x=x))
+                    command = 'alias {alias} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'
+                    cfg.write(command.format(alias=alias, relay=relay_key, x=x, name=track.name))
             if track.bind:
                 cfg.write('bind {bind} {x}\n'.format(bind=track.bind, x=x))
         cfg.write('voice_enable 1; voice_modenable 1\n')
@@ -369,9 +370,12 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
 
 def get_tracks(audio_path):
     # type: (str) -> list
-    black_list = ['cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
+    black_list = ['buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
                   'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
-                  'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'buy']
+                  'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'jam_play', 'jam_on', 'jam_off',
+                  'jam_writecmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',
+                  'jam_track', 'kill', 'explode']
+
     current_tracks = []
     bound_keys = []
 
@@ -421,9 +425,9 @@ def filter_aliases(alias_or_name):
     for char in alias_or_name:
         if char.isalpha() or char.isspace():
             filtered_name += char.lower()
-        elif char is not "'":
+        elif char is not "'" or '"':
             filtered_name += ' '
-    return filtered_name
+    return filtered_name.strip()
 
 
 def get_steam_path():
@@ -455,8 +459,6 @@ def bindable(key):
             return WX_KEYS_CONVERSION[key]
         elif chr(key).upper() in SOURCE_KEYS:
             return True
-        else:
-            return False
 
     return False
 
