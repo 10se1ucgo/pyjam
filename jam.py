@@ -461,8 +461,8 @@ class SetupDialog(wx.Dialog):
         config.set_games(self.games)
         config.save()
         self.games = config.get_games()  # Just in case, to keep it in sync.
-        if not os.path.exists(self.audio_path.GetPath()):
-            os.mkdir(self.audio_path.GetPath())
+        if not os.path.exists(os.path.abspath(self.audio_path.GetPath())):
+            os.mkdir(os.path.abspath(self.audio_path.GetPath()))
 
     def remove(self, event):
         if len(self.games) <= 1:
