@@ -17,7 +17,6 @@
 
 # The downloading stuff here is pretty much Windows only.
 from __future__ import division
-
 import logging
 import os
 import subprocess
@@ -254,6 +253,7 @@ class FFmpegConvertDialog(wx.Dialog):
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         self.Bind(wx.EVT_BUTTON, self.on_ok, id=wx.ID_OK)
+        self.Bind(wx.EVT_BUTTON, self.on_cancel, id=wx.ID_CANCEL)
 
         self.converter = None
         self.progress_dialog = None
@@ -277,6 +277,10 @@ class FFmpegConvertDialog(wx.Dialog):
         self.converter = FFmpegConvertThread(parent=self, dest=self.out_dir.GetPath(), rate=self.game_rate.GetValue(),
                                              vol=self.volume.GetValue(), songs=self.in_files)
         self.converter.start()
+
+    def on_cancel(self, event):
+        self.Destroy()
+        event.Skip()
 
     def update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.num_songs)
