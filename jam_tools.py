@@ -268,7 +268,7 @@ class Jam(object):
         song_id = self.poll_song(path)
         try:
             track = self.tracks[song_id]
-        except IndexError:
+        except (IndexError, TypeError):
             return
 
         shutil.copy(track.path, self.voice)

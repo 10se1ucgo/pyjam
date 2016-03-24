@@ -178,7 +178,7 @@ class FFmpegConvertThread(threading.Thread):
                 p = convert_audio(track, file, self.rate, self.vol)
                 output = p.communicate()  # output[0] is stdout, output[1] is stderr.
                 logger.info(output[0].decode())
-                if p.returncode != 0:
+                if p.returncode:
                     logger.critical("FFmpeg converter: Couldn't convert {track}".format(track=track))
                     logger.critical("FFmpeg converter: Error output log\n" + output[1].decode())
                     errors.append(track)
