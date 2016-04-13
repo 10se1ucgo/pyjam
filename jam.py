@@ -27,15 +27,14 @@ import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest
 from ObjectListView import ColumnDefn, ObjectListView
 from unidecode import unidecode
 
-import ffmpeg
+import jam_ffmpeg
 import jam_about
 import jam_tools
 
-# If on Python 2, FileNotFoundError should be created to prevent errors.
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
 except NameError:
-    FileNotFoundError = OSError
+    FileNotFoundError = IOError
 
 NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 
@@ -183,7 +182,7 @@ class MainPanel(wx.Panel):
         self.track_list.SetObjects(tracks)
 
     def convert(self, event, in_dir=None):
-        if ffmpeg.find() is None and sys.platform == "win32":
+        if jam_ffmpeg.find() is None and sys.platform == "win32":
             message = ("Couldn't detect FFmpeg in your PATH.\n"
                        "FFmpeg is required for audio conversion. Would you like to download it?")
             do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION)
@@ -193,7 +192,7 @@ class MainPanel(wx.Panel):
                     url = "https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z"
                 else:
                     url = "https://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
-                ffmpeg.FFmpegDownloader(self, url)
+                jam_ffmpeg.FFmpegDownloader(self, url)
 
             else:
                 download_info = ("Please download it and place FFmpeg.exe in your PATH\n"
@@ -206,7 +205,7 @@ class MainPanel(wx.Panel):
 
             do_download.Destroy()
 
-        elif ffmpeg.find() is None:
+        elif jam_ffmpeg.find() is None:
             message = wx.MessageDialog(parent=self,
                                        message="You require FFmpeg or avconv to convert audio. Please install it.",
                                        caption="pyjam")
@@ -214,7 +213,7 @@ class MainPanel(wx.Panel):
             message.Destroy()
 
         else:
-            ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir, in_dir)
+            jam_ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir, in_dir)
             self.game_select(event=None)
 
     def download(self, event):
@@ -285,7 +284,7 @@ class MainPanel(wx.Panel):
                 track_data = json.load(f)
         except FileNotFoundError:
             track_data = {}
-        except (IOError, ValueError):
+        except ValueError:
             track_data = {}
             logger.exception("Invalid trackdata for {path}".format(path=data_path))
 
@@ -356,6 +355,7 @@ class SetupDialog(wx.Dialog):
 
         self.relay_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
+        self.relay_choice.SetToolTip("Nice")
 
         self.play_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
         play_text = wx.StaticText(self, label="Play audio key")
@@ -466,8 +466,8 @@ class SetupDialog(wx.Dialog):
 
     def remove(self, event):
         if len(self.games) <= 1:
-            message = wx.MessageDialog(parent=self,
-                                       message="You can't remove your only game!", style=wx.OK | wx.ICON_EXCLAMATION)
+            message = wx.MessageDialog(parent=self, message="You can't remove your only game!",
+                                       style=wx.OK | wx.ICON_EXCLAMATION)
             message.ShowModal()
             message.Destroy()
             return False
@@ -506,7 +506,7 @@ def start_logger():
     except (OSError, IOError):
         error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
                                         message="Could not create log file, errors will not be recorded!",
-                                        caption="ERROR!", style=wx.OK | wx.ICON_ERROR)
+                                        caption="Error!", style=wx.OK | wx.ICON_ERROR)
         error_dialog.ShowModal()
         error_dialog.Destroy()
         _logger.exception("Could not create log file.")
@@ -523,7 +523,7 @@ def exception_hook(error, value, trace):
     logger.critical(error_message)
     error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
                                     message="An error has occured!\n\n" + error_message,
-                                    caption="ERROR!", style=wx.OK | wx.CANCEL | wx.ICON_ERROR)
+                                    caption="Error!", style=wx.OK | wx.CANCEL | wx.ICON_ERROR)
     error_dialog.SetOKCancelLabels("Ignore", "Quit")
     if error_dialog.ShowModal() == wx.ID_OK:
         error_dialog.Destroy()

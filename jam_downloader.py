@@ -19,8 +19,10 @@ import logging
 import os
 import threading
 
+import requests
 import youtube_dl
 import wx
+from ObjectListView import ColumnDefn, ObjectListView
 
 from jam_tools import wrap_exceptions
 
@@ -84,10 +86,10 @@ class DownloaderDialog(wx.Dialog):
                                                style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.parent = parent
 
-        self.audio_link = wx.TextCtrl(self, name="URL")
-        audio_link_text = wx.StaticText(self, label="URL")
+        self.audio_links = wx.TextCtrl(self)
+        audio_link_text = wx.StaticText(self, label="URL(s) (Separate with commas)")
 
-        self.out_dir = wx.DirPickerCtrl(self, name="Output directory", path=os.path.abspath("downloads"))
+        self.out_dir = wx.DirPickerCtrl(self, path=os.path.abspath("downloads"))
         out_dir_text = wx.StaticText(self, label="Output directory")
 
         warning_text = wx.StaticText(self, style=wx.ALIGN_CENTRE_HORIZONTAL,
@@ -95,21 +97,25 @@ class DownloaderDialog(wx.Dialog):
                                             "before downloading"))
         warning_text.Wrap(self.GetSize()[0])
 
+        search_button = wx.Button(self, label="Search")
+
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         control_sizer = wx.BoxSizer(wx.VERTICAL)
         text_sizer = wx.BoxSizer(wx.VERTICAL)
         button_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
 
         control_sizer.Add(audio_link_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
-        control_sizer.Add(self.audio_link, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
+        control_sizer.Add(self.audio_links, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
         control_sizer.Add(out_dir_text, 0, wx.ALL ^ wx.LEFT | wx.ALIGN_LEFT, 3)
         control_sizer.Add(self.out_dir, 0, wx.ALL ^ wx.LEFT ^ wx.TOP | wx.ALIGN_LEFT | wx.EXPAND, 5)
         text_sizer.Add(warning_text, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        button_sizer.Add(search_button)
         top_sizer.Add(control_sizer, 1, wx.ALL | wx.EXPAND | wx.ALIGN_TOP, 5)
         top_sizer.Add(text_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         self.Bind(wx.EVT_BUTTON, handler=self.on_ok, id=wx.ID_OK)
+        self.Bind(wx.EVT_BUTTON, handler=self.search_dialog, source=search_button)
 
         self.downloader = None
         self.progress_dialog = None
@@ -120,21 +126,24 @@ class DownloaderDialog(wx.Dialog):
         self.ShowModal()
 
     def on_ok(self, event):
+        songs = []
         with youtube_dl.YoutubeDL() as yt_dl:
-            try:
-                result = yt_dl.extract_info(self.audio_link.GetValue(), download=False, process=False)
-            except youtube_dl.DownloadError:
-                error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
-                                         message="Invalid/Unsupported URL!",
-                                         caption="Error!", style=wx.OK | wx.ICON_WARNING)
-                error.ShowModal()
-                error.Destroy()
-                return
+            for url in self.audio_links.GetValue().split(','):
+                try:
+                    result = yt_dl.extract_info(url, download=False, process=False)
+                except youtube_dl.DownloadError:
+                    error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+                                             message="Invalid/Unsupported URL!",
+                                             caption="Error!", style=wx.OK | wx.ICON_WARNING)
+                    error.ShowModal()
+                    error.Destroy()
+                    return
 
-        if 'entries' in result:  # True if link is a playlist
-            songs = [vid['url'] for vid in list(result['entries'])]
-        else:
-            songs = [self.audio_link.GetValue()]
+                if 'entries' in result:
+                    songs.extend(vid['url'] for vid in list(result['entries']))
+                else:
+                    songs.append(url)
+
         self.num_songs = len(songs)
 
         self.progress_dialog = wx.ProgressDialog(title="Download", message="Downloading songs...",
@@ -183,3 +192,56 @@ class DownloaderDialog(wx.Dialog):
             self.progress_dialog.Destroy()
             self.Destroy()
             wx.CallAfter(self.parent.convert, event=None, in_dir=self.out_dir.GetPath())
+
+    def search_dialog(self, event):
+        dialog = wx.Dialog(parent=self, title="pyjam Audio Search")
+        result_list = ObjectListView(parent=dialog, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=True,
+                                     useAlternateBackColors=False)
+        result_list.SetEmptyListMsg("No results")
+        result_list.SetColumns([
+            ColumnDefn(title="Title", valueGetter="title", width=150),
+            ColumnDefn(title="Description", valueGetter="desc", width=300)
+        ])
+
+        search_button = wx.Button(parent=dialog, label="Search")
+        search_text = wx.TextCtrl(parent=dialog)
+
+        top_sizer = wx.BoxSizer(wx.VERTICAL)
+        olv_sizer = wx.BoxSizer(wx.VERTICAL)
+        button_sizer = dialog.CreateButtonSizer(wx.OK | wx.CANCEL)
+
+        olv_sizer.Add(result_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
+        button_sizer.Add(search_button)
+        top_sizer.Add(olv_sizer, 1, wx.ALL | wx.EXPAND, 5)
+        top_sizer.Add(search_text, 0, wx.ALL | wx.EXPAND, 5)
+        top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+
+        dialog.Bind(wx.EVT_BUTTON, handler=lambda x: result_list.SetObjects(self.search(search_text.GetValue())),
+                    source=search_button)
+        dialog.Bind(wx.EVT_BUTTON, handler=lambda x: self.search_ok(x, result_list.GetSelectedObjects()),
+                    id=wx.ID_OK)
+        dialog.SetSizerAndFit(top_sizer)
+        dialog.Center()
+        dialog.ShowModal()
+
+    def search(self, query):
+        r = requests.get('https://pyjam-api.appspot.com', params={'query': query, 'app': 'pyjam'})
+
+        if not r.ok:
+            return None
+
+        results = []
+        r_json = r.json()
+        for item in r_json['items']:
+            results.append({"title": item["snippet"]["title"],
+                            "desc": item["snippet"]["description"],
+                            "id": item["id"]["videoId"]})
+
+        return results
+
+    def search_ok(self, event, selected):
+        self.audio_links.SetValue(','.join(item['id'] for item in selected))
+        event.Skip()
+
+
+

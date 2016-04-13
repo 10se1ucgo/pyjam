@@ -27,7 +27,7 @@ import requests
 import wx
 import wx.lib.intctrl as intctrl
 
-import seven_zip
+import jam_7z
 from jam_tools import wrap_exceptions
 
 try:
@@ -128,10 +128,10 @@ class FFmpegDownloader(wx.ProgressDialog):
         if self:
             logger.info("FFmpeg download complete.")
 
-            if seven_zip.find() is None:
+            if jam_7z.find() is None:
                 message_str = "FFmpeg was downloaded succesfully!\nPlease extract it. (bin/ffmpeg.7z)"
             else:
-                seven_zip.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
+                jam_7z.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
                 os.remove(os.path.normpath('bin/ffmpeg.7z'))
                 message_str = "FFmpeg was downloaded succesfully!"
             message = wx.MessageDialog(self, message_str, "pyjam")
