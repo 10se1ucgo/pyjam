@@ -23,6 +23,7 @@ import sys
 import traceback
 
 import wx  # Tested w/ wxPhoenix 3.0.3
+import wx.adv
 import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest version of wxPython-Pheonix!
 from ObjectListView import ColumnDefn, ObjectListView
 from unidecode import unidecode
@@ -42,6 +43,8 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam")
+        bitmap = wx.Bitmap('splash.png', wx.BITMAP_TYPE_PNG)
+        splash = wx.adv.SplashScreen(bitmap, wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_NO_TIMEOUT, 0, parent=self)
         panel = MainPanel(self)
         self.SetSize((600, 400))
 
@@ -71,6 +74,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.Licenses(self), source=licenses)
         self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
         jam_about.update_check(self)
+        splash.Destroy()
         self.Show()
 
 
