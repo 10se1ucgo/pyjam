@@ -15,9 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
+import collections
 import logging
 import os
 import threading
+import webbrowser
 
 import requests
 import youtube_dl
@@ -207,9 +209,12 @@ class SearchDialog(wx.Dialog):
             ColumnDefn(title="Description", valueGetter="desc", width=300)
         ])
 
+        self.search_recent = collections.deque([], 5)
         search_help = wx.StaticText(parent=self, label=("Enter a search term and press Enter. "
                                                         "Then, select videos from the list and press OK."))
-        search_query = wx.SearchCtrl(parent=self, style=wx.TE_PROCESS_ENTER)
+        self.search_query = wx.SearchCtrl(parent=self, style=wx.TE_PROCESS_ENTER)
+        self.search_query.ShowCancelButton(True)
+        self.search_query.SetMenu(self.search_menu())
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         olv_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -219,42 +224,50 @@ class SearchDialog(wx.Dialog):
 
         olv_sizer.Add(self.result_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
         query_sizer.Add(search_help, 0, wx.ALL ^ wx.TOP, 5)
-        query_sizer.Add(search_query, 0, wx.ALL ^ wx.TOP | wx.EXPAND, 5)
+        query_sizer.Add(self.search_query, 0, wx.ALL ^ wx.TOP | wx.EXPAND, 5)
         top_sizer.Add(olv_sizer, 1, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(query_sizer, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         # Context menu
         self.context_menu = wx.Menu()
-        copy_url = self.context_menu.Append(wx.ID_COPY, "Copy link URL")
+        open_url = self.context_menu.Append(wx.ID_OPEN, "Open link in browser")
+        copy_url = self.context_menu.Append(wx.ID_COPY, "Copy link address")
 
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, handler=self.list_right_click, source=self.result_list)
         self.Bind(wx.EVT_MENU, handler=self.copy_url, source=copy_url)
+        self.Bind(wx.EVT_MENU, handler=self.open_url, source=open_url)
 
-        self.Bind(wx.EVT_TEXT_ENTER, handler=self.on_search, source=search_query)
-        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, handler=self.on_search, source=search_query)
+        self.Bind(wx.EVT_TEXT_ENTER, handler=self.on_search, source=self.search_query)
         self.Bind(wx.EVT_BUTTON, handler=self.on_ok, id=wx.ID_OK)
         self.SetSizerAndFit(top_sizer)
         self.Center()
         self.ShowModal()
 
     def on_search(self, event):
-        r = requests.get('https://pyjam-api.appspot.com', params={'q': event.GetString(), 'app': 'pyjam'})
+        query = event.GetString()
+        if not query or query.isspace():
+            alert = wx.MessageDialog(parent=self, message="Search term can't be empty!", caption="pyjam Audio Search")
+            alert.ShowModal()
+            alert.Destroy()
+            return
+        self.search_recent.append(query)
+        self.search_query.SetMenu(self.search_menu())
 
+        r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
         if not r.ok:
             alert = wx.MessageDialog(parent=self,
                                      message="There was an error processing your request.\nPlease try again later",
                                      caption="pyjam Audio Search", style=wx.OK | wx.ICON_WARNING)
             alert.ShowModal()
             alert.Destroy()
-            return None
+            return
 
         results = []
         for item in r.json()['items']:
             results.append(
                 {"title": item["snippet"]["title"],
                  "desc": item["snippet"]["description"],
-                 "id": item["id"]["videoId"],
                  "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
                  }
             )
@@ -280,3 +293,18 @@ class SearchDialog(wx.Dialog):
         url = self.result_list.GetObjects()[self.selected_video]["url"]
         wx.TheClipboard.SetData(wx.TextDataObject(url))
         wx.TheClipboard.Close()
+
+    def open_url(self, event):
+        url = self.result_list.GetObjects()[self.selected_video]["url"]
+        webbrowser.open_new_tab(url)
+
+    def search_menu(self):
+        menu = wx.Menu()
+        menu.Append(wx.ID_ANY, "Recent").Enable(False)
+        for item in self.search_recent:
+            self.Bind(wx.EVT_MENU, handler=self.click_recent, source=menu.Append(wx.ID_ANY, item))
+        return menu
+
+    def click_recent(self, event):
+        search = event.GetEventObject().GetLabel(event.GetId())
+        self.search_query.SetValue(search)
