@@ -486,7 +486,7 @@ class SetupDialog(wx.Dialog):
         self.profile.SetSelection(0)
         self.update_profile(event=None)
 
-        logger.debug("Game removed: {name}".format(name=name))
+        logger.info("Game removed: {name}".format(name=name))
 
 
 def start_logger():

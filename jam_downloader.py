@@ -48,7 +48,7 @@ class DownloaderThread(threading.Thread):
         self._abort.set()
 
     def is_aborted(self):
-        logger.debug("Aborting audio/video downloader thread.")
+        logger.info("Aborting audio/video downloader thread.")
         return self._abort.isSet()
 
     @wrap_exceptions
@@ -59,7 +59,7 @@ class DownloaderThread(threading.Thread):
             while not self.is_aborted():
                 try:
                     song_url = next(song_urls)
-                    logger.debug("Downloading audio/video from {url}".format(url=song_url))
+                    logger.info("Downloading audio/video from {url}".format(url=song_url))
                     try:
                         yt.download([song_url])
                     except youtube_dl.DownloadError:
@@ -209,9 +209,9 @@ class SearchDialog(wx.Dialog):
             ColumnDefn(title="Description", valueGetter="desc", width=300)
         ])
 
-        self.search_recent = collections.deque([], 5)
+        self.search_recent = collections.deque([], 10)
         search_help = wx.StaticText(parent=self, label=("Enter a search term and press Enter. "
-                                                        "Then, select videos from the list and press OK."))
+                                                        "Then, select the videos you want from the list and press OK."))
         self.search_query = wx.SearchCtrl(parent=self, style=wx.TE_PROCESS_ENTER)
         self.search_query.ShowCancelButton(True)
         self.search_query.SetMenu(self.search_menu())
@@ -245,13 +245,15 @@ class SearchDialog(wx.Dialog):
         self.ShowModal()
 
     def on_search(self, event):
-        query = event.GetString()
+        query = self.search_query.GetValue()
         if not query or query.isspace():
             alert = wx.MessageDialog(parent=self, message="Search term can't be empty!", caption="pyjam Audio Search")
             alert.ShowModal()
             alert.Destroy()
             return
-        self.search_recent.append(query)
+        if query in self.search_recent:
+            self.search_recent.remove(query)
+        self.search_recent.appendleft(query)
         self.search_query.SetMenu(self.search_menu())
 
         r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
@@ -300,7 +302,7 @@ class SearchDialog(wx.Dialog):
 
     def search_menu(self):
         menu = wx.Menu()
-        menu.Append(wx.ID_ANY, "Recent").Enable(False)
+        menu.Append(wx.ID_ANY, "Recent searches").Enable(False)
         for item in self.search_recent:
             self.Bind(wx.EVT_MENU, handler=self.click_recent, source=menu.Append(wx.ID_ANY, item))
         return menu
@@ -308,3 +310,4 @@ class SearchDialog(wx.Dialog):
     def click_recent(self, event):
         search = event.GetEventObject().GetLabel(event.GetId())
         self.search_query.SetValue(search)
+        self.on_search(event=None)

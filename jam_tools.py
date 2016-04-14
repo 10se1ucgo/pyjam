@@ -239,7 +239,7 @@ class Jam(object):
         self.user_data = os.path.normpath(os.path.join(self.steam_path, 'userdata'))
         self.voice = os.path.normpath(os.path.join(self.game.mod_path, os.path.join(os.path.pardir, 'voice_input.wav')))
         self.observer = JamObserver()
-        self.event_handler = JamHandler(self)
+        self.event_handler = JamHandler(self, 'jam_cmd.cfg')
 
     def start(self):
         self.observer.schedule(self.event_handler, self.user_data, recursive=True)
@@ -273,7 +273,7 @@ class Jam(object):
 
         logger.info("Removed 'exec jam' from autoexec.")
 
-    def load_song(self, path):
+    def on_event(self, path):
         logger.info("jam_cmd.cfg change detected, loading song...")
         song_id = self.poll_song(path)
         try:
@@ -310,20 +310,21 @@ class Jam(object):
 
 
 class JamHandler(FileSystemEventHandler):
-    def __init__(self, calling_class):
+    def __init__(self, calling_class, file_name):
         super(JamHandler, self).__init__()
         self.calling = calling_class
+        self.file_name = file_name
 
     def on_modified(self, event):
-        if os.path.basename(event.src_path) == 'jam_cmd.cfg':
-            self.calling.load_song(event.src_path)
+        if os.path.basename(event.src_path) == self.file_name:
+            self.calling.on_event(event.src_path)
 
     def on_moved(self, event):
         # This isn't really needed, but it's useful for things that use something like atomic saving.
-        if os.path.basename(event.src_path) == 'jam_cmd.cfg':
-            self.calling.load_song(event.src_path)
-        elif os.path.basename(event.dest_path) == 'jam_cmd.cfg':
-            self.calling.load_song(event.dest_path)
+        if os.path.basename(event.src_path) == self.file_name:
+            self.calling.on_event(event.src_path)
+        elif os.path.basename(event.dest_path) == self.file_name:
+            self.calling.on_event(event.dest_path)
 
 
 class JamObserver(Observer):

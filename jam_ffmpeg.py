@@ -66,7 +66,7 @@ class FFmpegDownloaderThread(threading.Thread):
         self.daemon = True
 
     def abort(self):
-        logger.debug("Aborting FFmpeg downloader thread.")
+        logger.info("Aborting FFmpeg downloader thread.")
         self._abort.set()
 
     def is_aborted(self):
@@ -86,9 +86,9 @@ class FFmpegDownloaderThread(threading.Thread):
                 try:
                     chunk = next(data_chunks)
                     file_size_dl += len(chunk)
-                    logger.debug("FFmpeg downloader: Downloaded chunk: {chunk}".format(chunk=len(chunk)))
-                    logger.debug("FFmpeg downloader: Total downloaded so far: {total}".format(total=file_size_dl))
-                    logger.debug("FFmpeg downloader: Remaining: {r}".format(r=self.file_size - file_size_dl))
+                    logger.info("FFmpeg downloader: Downloaded chunk: {chunk}".format(chunk=len(chunk)))
+                    logger.info("FFmpeg downloader: Total downloaded so far: {total}".format(total=file_size_dl))
+                    logger.info("FFmpeg downloader: Remaining: {r}".format(r=self.file_size - file_size_dl))
                     if chunk:
                         f.write(chunk)
                         f.flush()
@@ -155,7 +155,7 @@ class FFmpegConvertThread(threading.Thread):
         self.daemon = True
 
     def abort(self):
-        logger.debug("Aborting FFmpeg converter thread.")
+        logger.info("Aborting FFmpeg converter thread.")
         self._abort.set()
 
     def is_aborted(self):
@@ -169,9 +169,9 @@ class FFmpegConvertThread(threading.Thread):
             try:
                 track = next(tracks)
                 file = os.path.join(self.dest, os.path.splitext(os.path.basename(track))[0])
-                logger.debug("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
-                logger.debug("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
-                logger.debug("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
+                logger.info("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
+                logger.info("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
+                logger.info("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
                                                                                                  rate=self.rate,
                                                                                                  vol=self.vol))
                 p = convert_audio(track, file, self.rate, self.vol)
@@ -193,7 +193,7 @@ class FFmpegConvertThread(threading.Thread):
 
     @wrap_exceptions
     def strip_encoder(self, file):
-        logger.debug("Stripping metadata from {file}".format(file=file + '.wav'))
+        logger.info("Stripping metadata from {file}".format(file=file + '.wav'))
         with open(file + '.wav', 'rb') as f:
             wav = bytearray(f.read())
         del wav[ENCODER_START:ENCODER_START + ENCODER_LEN]
@@ -287,6 +287,8 @@ class FFmpegConvertDialog(wx.Dialog):
     def update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.num_songs)
         if self.progress_dialog and self.converter.isAlive():
+            if message >= self.num_songs * 2:
+                message = self.num_songs * 2 - 1
             if not self.progress_dialog.Update(value=message, newmsg="Converted: {prog}".format(prog=progress))[0]:
                 self.converter.abort()
                 self.converter.join()
