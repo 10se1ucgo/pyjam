@@ -85,9 +85,16 @@ def wrap_exceptions(func):
             return func(*args, **kwargs)
         except UnicodeError:
             logging.exception("unicode is literally the worst valve please fix thank")
+            raise
         except Exception:
+            if isinstance(args[0], wx.TopLevelWindow):
+                parent = args[0]
+            elif hasattr(args[0], "parent") and isinstance(args[0].parent, wx.TopLevelWindow):
+                parent = args[0].parent
+            else:
+                parent = wx.GetApp().GetTopWindow()
             error_message = ''.join(traceback.format_exc())
-            error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+            error_dialog = wx.MessageDialog(parent=parent,
                                             message="An error has occured\n\n" + error_message,
                                             caption="Error!", style=wx.OK | wx.ICON_ERROR)
             error_dialog.ShowModal()

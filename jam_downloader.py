@@ -115,7 +115,7 @@ class DownloaderDialog(wx.Dialog):
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         self.Bind(wx.EVT_BUTTON, handler=self.on_ok, id=wx.ID_OK)
-        self.Bind(wx.EVT_BUTTON, handler=self.search_dialog, source=search_button)
+        self.Bind(wx.EVT_BUTTON, handler=lambda x: SearchDialog(self), source=search_button)
 
         self.downloader = None
         self.progress_dialog = None
@@ -193,55 +193,90 @@ class DownloaderDialog(wx.Dialog):
             self.Destroy()
             wx.CallAfter(self.parent.convert, event=None, in_dir=self.out_dir.GetPath())
 
-    def search_dialog(self, event):
-        dialog = wx.Dialog(parent=self, title="pyjam Audio Search")
-        result_list = ObjectListView(parent=dialog, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=True,
-                                     useAlternateBackColors=False)
-        result_list.SetEmptyListMsg("No results")
-        result_list.SetColumns([
+
+class SearchDialog(wx.Dialog):
+    def __init__(self, parent):
+        super(SearchDialog, self).__init__(parent=parent, title="pyjam Audio Search")
+        self.parent = parent
+
+        self.result_list = ObjectListView(parent=self, style=wx.LC_REPORT | wx.BORDER_SUNKEN, sortable=True,
+                                          useAlternateBackColors=False)
+        self.result_list.SetEmptyListMsg("No results")
+        self.result_list.SetColumns([
             ColumnDefn(title="Title", valueGetter="title", width=150),
             ColumnDefn(title="Description", valueGetter="desc", width=300)
         ])
 
-        search_button = wx.Button(parent=dialog, label="Search")
-        search_text = wx.TextCtrl(parent=dialog)
+        search_help = wx.StaticText(parent=self, label=("Enter a search term and press Enter. "
+                                                        "Then, select videos from the list and press OK."))
+        search_query = wx.SearchCtrl(parent=self, style=wx.TE_PROCESS_ENTER)
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         olv_sizer = wx.BoxSizer(wx.VERTICAL)
-        button_sizer = dialog.CreateButtonSizer(wx.OK | wx.CANCEL)
+        query_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        olv_sizer.Add(result_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
-        button_sizer.Add(search_button)
+        button_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+
+        olv_sizer.Add(self.result_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
+        query_sizer.Add(search_help, 0, wx.ALL ^ wx.TOP, 5)
+        query_sizer.Add(search_query, 0, wx.ALL ^ wx.TOP | wx.EXPAND, 5)
         top_sizer.Add(olv_sizer, 1, wx.ALL | wx.EXPAND, 5)
-        top_sizer.Add(search_text, 0, wx.ALL | wx.EXPAND, 5)
+        top_sizer.Add(query_sizer, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
-        dialog.Bind(wx.EVT_BUTTON, handler=lambda x: result_list.SetObjects(self.search(search_text.GetValue())),
-                    source=search_button)
-        dialog.Bind(wx.EVT_BUTTON, handler=lambda x: self.search_ok(x, result_list.GetSelectedObjects()),
-                    id=wx.ID_OK)
-        dialog.SetSizerAndFit(top_sizer)
-        dialog.Center()
-        dialog.ShowModal()
+        # Context menu
+        self.context_menu = wx.Menu()
+        copy_url = self.context_menu.Append(wx.ID_COPY, "Copy link URL")
 
-    def search(self, query):
-        r = requests.get('https://pyjam-api.appspot.com', params={'query': query, 'app': 'pyjam'})
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, handler=self.list_right_click, source=self.result_list)
+        self.Bind(wx.EVT_MENU, handler=self.copy_url, source=copy_url)
+
+        self.Bind(wx.EVT_TEXT_ENTER, handler=self.on_search, source=search_query)
+        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, handler=self.on_search, source=search_query)
+        self.Bind(wx.EVT_BUTTON, handler=self.on_ok, id=wx.ID_OK)
+        self.SetSizerAndFit(top_sizer)
+        self.Center()
+        self.ShowModal()
+
+    def on_search(self, event):
+        r = requests.get('https://pyjam-api.appspot.com', params={'q': event.GetString(), 'app': 'pyjam'})
 
         if not r.ok:
+            alert = wx.MessageDialog(parent=self,
+                                     message="There was an error processing your request.\nPlease try again later",
+                                     caption="pyjam Audio Search", style=wx.OK | wx.ICON_WARNING)
+            alert.ShowModal()
+            alert.Destroy()
             return None
 
         results = []
-        r_json = r.json()
-        for item in r_json['items']:
-            results.append({"title": item["snippet"]["title"],
-                            "desc": item["snippet"]["description"],
-                            "id": item["id"]["videoId"]})
+        for item in r.json()['items']:
+            results.append(
+                {"title": item["snippet"]["title"],
+                 "desc": item["snippet"]["description"],
+                 "id": item["id"]["videoId"],
+                 "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
+                 }
+            )
 
-        return results
+        self.result_list.SetObjects(results)
 
-    def search_ok(self, event, selected):
-        self.audio_links.SetValue(','.join(item['id'] for item in selected))
+    def on_ok(self, event):
+        self.parent.audio_links.SetValue(','.join(item['url'] for item in self.result_list.GetSelectedObjects()))
         event.Skip()
 
+    def list_right_click(self, event):
+        self.selected_video = event.GetIndex()
+        self.PopupMenu(self.context_menu)
 
+    def copy_url(self, event):
+        if not wx.TheClipboard.Open():
+            alert = wx.MessageDialog(parent=self, message="There was an error opening the clipboard",
+                                     caption="pyjam Audio Search", style=wx.OK | wx.ICON_WARNING)
+            alert.ShowModal()
+            alert.Destroy()
+            return
 
+        url = self.result_list.GetObjects()[self.selected_video]["url"]
+        wx.TheClipboard.SetData(wx.TextDataObject(url))
+        wx.TheClipboard.Close()

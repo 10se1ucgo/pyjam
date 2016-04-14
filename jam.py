@@ -138,18 +138,18 @@ class MainPanel(wx.Panel):
         clear_bind = self.context_menu.Append(wx.ID_ANY, "Clear bind")
         clear_all = self.context_menu.Append(wx.ID_CLEAR, "Clear EVERYTHING (all tracks)")
 
-        self.Bind(wx.EVT_COMBOBOX, handler=self.game_select, source=self.profile)
-        self.Bind(wx.EVT_BUTTON, handler=self.refresh, source=refresh_button)
-        self.Bind(wx.EVT_BUTTON, handler=self.start_stop, source=self.start_stop_button)
-        self.Bind(wx.EVT_BUTTON, handler=self.convert, source=convert_button)
-        self.Bind(wx.EVT_BUTTON, handler=self.download, source=download_button)
-
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, handler=self.list_right_click, source=self.track_list)
         self.Bind(wx.EVT_MENU, handler=self.set_aliases, source=set_aliases)
         self.Bind(wx.EVT_MENU, handler=self.clear_aliases, source=clear_aliases)
         self.Bind(wx.EVT_MENU, handler=self.set_bind, source=set_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_bind, source=clear_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_all, source=clear_all)
+
+        self.Bind(wx.EVT_COMBOBOX, handler=self.game_select, source=self.profile)
+        self.Bind(wx.EVT_BUTTON, handler=self.refresh, source=refresh_button)
+        self.Bind(wx.EVT_BUTTON, handler=self.start_stop, source=self.start_stop_button)
+        self.Bind(wx.EVT_BUTTON, handler=self.convert, source=convert_button)
+        self.Bind(wx.EVT_BUTTON, handler=self.download, source=download_button)
 
         self.Bind(wx.EVT_SIZE, handler=self.on_size)
         self.Bind(wx.EVT_CLOSE, handler=self.on_exit)
@@ -521,7 +521,7 @@ def start_logger():
 def exception_hook(error, value, trace):
     error_message = ''.join(traceback.format_exception(error, value, trace))
     logger.critical(error_message)
-    error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+    error_dialog = wx.MessageDialog(parent=None,
                                     message="An error has occured!\n\n" + error_message,
                                     caption="Error!", style=wx.OK | wx.CANCEL | wx.ICON_ERROR)
     error_dialog.SetOKCancelLabels("Ignore", "Quit")
