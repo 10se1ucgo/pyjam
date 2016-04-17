@@ -44,6 +44,7 @@ def wrap_exceptions(func):
             error_dialog = wx.MessageDialog(parent=parent,
                                             message="An error has occured\n\n" + error_message,
                                             caption="Error!", style=wx.OK | wx.ICON_ERROR)
+            error_dialog.RequestUserAttention()
             error_dialog.ShowModal()
             error_dialog.Destroy()
             logger.critical(error_message)

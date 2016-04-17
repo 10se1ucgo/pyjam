@@ -167,7 +167,7 @@ class MainPanel(wx.Panel):
         if not self.game_watcher:
             self.start_stop_button.SetLabel("Starting...")
             self.start_stop_button.Disable()
-            self.game_watcher = jam_tools.Jam(config.steam_path, self.game, self.track_list.GetObjects())
+            self.game_watcher = jam_tools.Jam(config.steam_path, self.game, self.track_list)
             self.game_watcher.start()
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Stop")
@@ -531,6 +531,7 @@ def exception_hook(error, value, trace):
                                     message="An error has occured!\n\n" + error_message,
                                     caption="Error!", style=wx.OK | wx.CANCEL | wx.ICON_ERROR)
     error_dialog.SetOKCancelLabels("Ignore", "Quit")
+    error_dialog.RequestUserAttention()
     if error_dialog.ShowModal() == wx.ID_OK:
         error_dialog.Destroy()
     else:

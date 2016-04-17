@@ -27,6 +27,7 @@ import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+import jam_ffmpeg
 from jam_about import __version__
 from jam_common import wrap_exceptions
 from jam_downloader import DownloaderThread, yt_extract, yt_search
@@ -196,10 +197,10 @@ class Game(object):
 
 
 class Jam(object):
-    def __init__(self, steam_path, game_class, tracks):
+    def __init__(self, steam_path, game_class, track_list):
         self.steam_path = steam_path
         self.game = game_class
-        self.tracks = tracks
+        self.track_list = track_list
         self.user_data = os.path.normpath(os.path.join(self.steam_path, 'userdata'))
         self.voice = os.path.normpath(os.path.join(self.game.mod_path, os.path.join(os.path.pardir, 'voice_input.wav')))
         self.observer = JamObserver()
@@ -210,7 +211,8 @@ class Jam(object):
     def start(self):
         self.observer.schedule(self.event_handler, self.user_data, recursive=True)
         self.observer.start()
-        write_configs(self.game.mod_path, self.tracks, self.game.play_key, self.game.relay_key, self.game.use_aliases)
+        write_configs(self.game.mod_path, self.track_list.GetObjects(), self.game.play_key,
+                      self.game.relay_key, self.game.use_aliases)
 
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/autoexec.cfg')), 'a') as cfg:
             cfg.write('\nexec jam\n')
@@ -280,7 +282,7 @@ class Jam(object):
 
     def load_song(self, index):
         try:
-            track = self.tracks[index]
+            track = self.track_list.GetObjects()[index]
         except IndexError:
             logger.debug("Failed to load track with index {index}, out of range.".format(index=index))
             return
@@ -307,35 +309,79 @@ class Jam(object):
                 cfg.write('echo "{out}"\n'.format(out=out))
 
     def download(self, urls):
+        if self.total_downloads:
+            # A download is already in progress.
+            return
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
-            cfg.write('echo "YOUTUBE DOWNLOADER"\n')
+            cfg.write('echo "PYJAM DOWNLOADER"\n')
             cfg.write('echo "------------------"\n')
             cfg.write('echo "Extracting URL info, starting download..."\n')
         logger.info("Recieved urls: {urls}".format(urls=urls))
         urls = yt_extract(urls.split(','))
         if not urls:
             with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
-                cfg.write('echo "YOUTUBE DOWNLOADER"\n')
+                cfg.write('echo "PYJAM DOWNLOADER"\n')
                 cfg.write('echo "------------------"\n')
                 cfg.write('echo "Invalid/unsupported URL(s)!"\n')
             return
         self.total_downloads = len(urls)
-        downloader = DownloaderThread(self, urls, os.path.abspath("downloads"))
+        downloader = DownloaderThread(self, urls, os.path.abspath('_ingame_dl'))
         downloader.start()
         logger.info(urls)
 
     def download_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 100, total=self.total_downloads)
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
-            cfg.write('echo "YOUTUBE DOWNLOAD PROGRESS"\n')
+            cfg.write('echo "PYJAM DOWNLOAD PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "{progress} downloaded so far"\n'.format(progress=progress))
 
     def download_complete(self, message):
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
-            cfg.write('echo "YOUTUBE DOWNLOAD PROGRESS"\n')
+            cfg.write('echo "PYJAM DOWNLOAD PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
-            cfg.write('echo "Download complete! Downloaded to {folder}"\n'.format(folder=os.path.abspath("downloads")))
+            cfg.write('echo "Download complete! Downloaded to {folder}"\n'.format(folder=os.path.abspath('_ingame_dl')))
+            cfg.write('echo "Starting conversion..."\n')
+        self.convert()
+
+    def convert(self):
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            if jam_ffmpeg is None:
+                cfg.write('echo "PYJAM CONVERTER"\n')
+                cfg.write('echo "---------------"\n')
+                cfg.write('echo "FFmpeg could not be found on the system"\n')
+                cfg.write('echo "The audio converter will not work without it."\n')
+                cfg.write('echo "Please check your configuration and try again"\n')
+                return
+            else:
+                cfg.write('echo "PYJAM CONVERTER"\n')
+                cfg.write('echo "---------------"\n')
+                cfg.write('echo "Beginning conversion..."\n')
+
+        files = glob.glob(os.path.join(os.path.abspath('_ingame_dl'), '*.*'))
+        converter = jam_ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
+        converter.start()
+
+    def convert_update(self, message):
+        progress = "{songs} out of {total}".format(songs=message // 2, total=self.total_downloads)
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "PYJAM CONVERSION PROGRESS"\n')
+            cfg.write('echo "-------------------------"\n')
+            cfg.write('echo "{progress} converted so far"\n'.format(progress=progress))
+
+    def convert_complete(self, message):
+        self.stop()
+        tracks = get_tracks(self.game.audio_dir)
+        self.track_list.SetObjects(tracks)
+        self.observer = JamObserver()  # Create new Observer object. Threads cannot be restarted.
+        self.start()
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "PYJAM CONVERSION PROGRESS"\n')
+            cfg.write('echo "-------------------------"\n')
+            cfg.write('echo "Conversion complete!"\n'.format(folder=os.path.abspath('_ingame_dl')))
+            cfg.write('echo "pyjam will now reload..."\n')
+            cfg.write('exec jam\n')
+        self.total_downloads = 0
 
 class JamHandler(FileSystemEventHandler):
     def __init__(self, calling_class, file_name):
@@ -464,7 +510,10 @@ def get_tracks(audio_path):
         current_tracks.append(Track(index, name, aliases, track, bind))
         index += 1
 
-    logger.debug("Generated track list {tracks}".format(tracks='\n'.join([repr(x) for x in current_tracks])))
+    if current_tracks:
+        logger.debug("Generated track list: {tracks}".format(tracks='\n'.join([repr(x) for x in current_tracks])))
+    else:
+        logger.debug("No tracks found.")
     return current_tracks
 
 

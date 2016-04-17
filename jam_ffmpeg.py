@@ -28,7 +28,7 @@ import wx
 import wx.lib.intctrl as intctrl
 
 import jam_7z
-from jam_tools import wrap_exceptions
+from jam_common import wrap_exceptions
 
 try:
     from shutil import which
@@ -163,6 +163,8 @@ class FFmpegConvertThread(threading.Thread):
 
     @wrap_exceptions
     def run(self):
+        if not os.path.exists(self.dest):
+            os.makedirs(self.dest)
         tracks = iter(self.songs)
         errors = []
         while not self.is_aborted():
@@ -200,7 +202,7 @@ class FFmpegConvertThread(threading.Thread):
         with open(file + '.wav', 'wb') as f:
             f.write(wav)
         self.converted += 1
-        wx.CallAfter(self.parent.update, message=self.converted)
+        wx.CallAfter(self.parent.convert_update, message=self.converted)
 
 
 class FFmpegConvertDialog(wx.Dialog):
@@ -353,10 +355,8 @@ def find():
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
+    # type: (str, str, int or str, int, str) -> subprocess.Popen object
     rate = str(rate)
-    # type: (str, str, int or str, int, str) -> int
-    # cmd = '{ff} -y -i "{i}" -map_metadata -1 -ac 1 -aq 100 -acodec {codec} -ar {rate} -af volume={vol} "{dest}.wav"'
-    # cmd = cmd.format(ff=find(), i=file, codec=codec, rate=rate, vol=vol / 100, dest=dest)
     cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
            '-acodec', codec, '-ar', rate, '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
