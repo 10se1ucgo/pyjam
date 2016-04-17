@@ -103,9 +103,10 @@ class MainPanel(wx.Panel):
                                          useAlternateBackColors=False)
         self.track_list.SetEmptyListMsg("You currently do not have any sound files for this game.")
         self.track_list.SetColumns([
+            ColumnDefn(title="#", fixedWidth=50, valueGetter="index", stringConverter="%i"),
             ColumnDefn(title="Title", width=250, valueGetter="name", minimumWidth=150, isSpaceFilling=True),
             ColumnDefn(title="Aliases", width=300, valueGetter="get_aliases", minimumWidth=200, isSpaceFilling=True),
-            ColumnDefn(title="Bind", width=75, valueGetter="get_bind", minimumWidth=50, maximumWidth=120)
+            ColumnDefn(title="Bind", width=75, valueGetter="bind", minimumWidth=50, maximumWidth=120)
         ])
         self.track_list.rowFormatter = lambda x, y: x.SetTextColour(wx.RED) if y.get_aliases() == NO_ALIASES else None
         self.selected_track = None
@@ -439,9 +440,10 @@ class SetupDialog(wx.Dialog):
         if new_profile.ShowModal() != wx.ID_OK:
             new_profile.Destroy()
             return
-        new_profile.Destroy()
 
         name = new_profile.GetValue()
+        new_profile.Destroy()
+
         self.profile.Append(name)
         self.games.append(jam_tools.Game(name=name))
         config.set_games(self.games)

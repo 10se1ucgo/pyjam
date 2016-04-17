@@ -23,6 +23,7 @@ import logging
 from string import whitespace
 
 import psutil
+import requests
 import unidecode
 import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
@@ -188,7 +189,8 @@ class Config(object):
 
 
 class Track(object):
-    def __init__(self, name, aliases, path, bind=None):
+    def __init__(self, index, name, aliases, path, bind=None):
+        self.index = index
         self.name = unidecode.unidecode(name)
         self.aliases = [unidecode.unidecode(alias) for alias in aliases]
         self.path = path
@@ -197,14 +199,10 @@ class Track(object):
     def get_aliases(self):
         return unidecode.unidecode(str(self.aliases).strip('[]') if self.aliases else "This track has no aliases")
 
-    def get_bind(self):
-        return self.bind if self.bind else " "
-
     def __repr__(self):
-        return unidecode.unidecode("{c}(name:{name}, aliases:{aliases}, location:{path})").format(c=self.__class__,
-                                                                                                  name=self.name,
-                                                                                                  aliases=self.aliases,
-                                                                                                  path=self.path)
+        return unidecode.unidecode("{c}(name:{name}, aliases:{aliases}, location:{path})").format(
+            c=self.__class__, name=self.name, aliases=self.aliases, path=self.path
+        )
 
     def __str__(self):
         return "Music Track: {name}".format(name=self.name)
@@ -222,10 +220,9 @@ class Game(object):
         self.use_aliases = use_aliases
 
     def __repr__(self):
-        return "{c}(name:{name}, rate:{rate}, path:{path})".format(c=self.__class__,
-                                                                   name=self.name,
-                                                                   rate=self.audio_rate,
-                                                                   path=self.mod_path)
+        return "{c}(name:{name}, rate:{rate}, path:{path})".format(
+            c=self.__class__, name=self.name, rate=self.audio_rate, path=self.mod_path
+        )
 
     def __str__(self):
         return "Source Engine Game: {name}".format(name=self.name)
@@ -258,6 +255,7 @@ class Jam(object):
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_la.cfg')))
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_curtrack.cfg')))
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_saycurtrack.cfg')))
+            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')))
             os.remove(os.path.normpath(os.path.join(self.game.mod_path, self.voice)))
             logger.info("Succesfully removed pyjam config files.")
         except (FileNotFoundError, IOError):
@@ -274,15 +272,42 @@ class Jam(object):
         logger.info("Removed 'exec jam' from autoexec.")
 
     def on_event(self, path):
-        logger.info("jam_cmd.cfg change detected, loading song...")
-        song_id = self.poll_song(path)
-        try:
-            track = self.tracks[song_id]
-        except IndexError:
-            logger.info("Failed to load song. Index out of range.")
-            return
-        except TypeError:
-            return
+        logger.info("jam_cmd.cfg change detected, parsing config for song index/command...")
+        self.parse_config(path)
+
+    def parse_config(self, path):
+        with open(path) as cfg:
+            for line in cfg:
+                if line[0:4] != 'bind':
+                    continue
+
+                line = line.replace('"', '').split()
+                if line[1] == self.game.relay_key:
+
+                    try:
+                        bind = line[2:]
+                    except IndexError:
+                        logger.exception("Relay key bind had no argument.")
+                        continue
+
+                    if bind[0].isdigit():
+                        song = int(bind[0])
+                        logger.info("Song index found, index {index}".format(index=song))
+                        try:
+                            track = self.tracks[song]
+                            self.load_song(track)
+                            return
+                        except IndexError:
+                            logger.debug("Failed to load track with index {index}, out of range.".format(index=song))
+                            continue
+                    elif bind[0] == 'search:':
+                        logger.info("Search command found: {command}".format(command=bind[1:]))
+                        self.search(' '.join(bind[1:]))
+                        return
+                    else:
+                        logger.info("Could not find a valid command or song index.")
+
+    def load_song(self, track):
         shutil.copy(track.path, self.voice)
         logger.info("Song loaded: {track}".format(track=repr(track)))
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_curtrack.cfg')), 'w') as cfg:
@@ -290,23 +315,20 @@ class Jam(object):
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_saycurtrack.cfg')), 'w') as cfg:
             cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
 
-    def poll_song(self, path):
-        logger.info("Reading for song index")
-        song = None
-        with open(path) as cfg:
-            for line in cfg:
-                # Get rid of the leading/trailing spaces.
-                line = line.strip()
-                # Get rid of quotes
-                line = line.replace('"', '').replace("'", '')
-                line = line.split()
-                try:
-                    if line[0] == 'bind' and line[1] == self.game.relay_key:
-                        song = int(line[2])
-                        logger.info("Song index found, index {index}".format(index=song))
-                except (ValueError, IndexError):
-                    logger.exception("Could not poll for song index")
-        return song
+    def search(self, query):
+        result = search(query)
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
+            cfg.write('echo "----------------------"\n')
+            if not result:
+                cfg.write('echo "There was an error processing your request. Please try again later"\n')
+                return
+            for item in result:
+                out = unidecode.unidecode("{id}: {title} - {desc}".format(
+                    title=item['title'], id=item['id'], desc=item['desc']
+                ))
+                logger.info(out)
+                cfg.write('echo "{out}"\n'.format(out=out))
 
 
 class JamHandler(FileSystemEventHandler):
@@ -347,7 +369,7 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('alias jam_play jam_on\n')
         cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
         cfg.write('alias jam_off "voice_inputfromfile 0; voice_loopback 0; -voicerecord; alias jam_play jam_on"\n')
-        cfg.write('alias jam_writecmd "host_writeconfig jam_cmd"\n')
+        cfg.write('alias jam_cmd "host_writeconfig jam_cmd"\n')
         cfg.write('alias jam_listaudio "exec jam_la"\n')
         cfg.write('alias jam_la "exec jam_la"\n')
         cfg.write('alias la "exec jam_la"\n')
@@ -355,13 +377,15 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('alias jam_say "exec jam_saycurtrack"\n')
         cfg.write('alias jam_echotrack "exec jam_curtrack"\n')
         cfg.write('alias jam_track "exec jam_curtrack"\n')
+        cfg.write('alias jam_stdin "exec jam_stdin"\n')
+        cfg.write('alias stdin "exec jam_stdin"\n')
         for x, track in enumerate(tracks):
-            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'.format(x=x,
+            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'.format(x=x,
                                                                                                  relay=relay_key,
                                                                                                  name=track.name))
             if use_aliases:
                 for alias in track.aliases:
-                    command = 'alias {alias} "bind {relay} {x}; echo Loaded: {name}; jam_writecmd"\n'
+                    command = 'alias {alias} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'
                     cfg.write(command.format(alias=alias, relay=relay_key, x=x, name=track.name))
             if track.bind:
                 cfg.write('bind {bind} {x}\n'.format(bind=track.bind, x=x))
@@ -381,14 +405,15 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     with open(os.path.normpath(os.path.join(path, 'cfg/jam_saycurtrack.cfg')), 'w') as cfg:
         cfg.write('say "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
-
+    with open(os.path.normpath(os.path.join(path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        cfg.write('echo "Nothing to be reported at this time."\n')
 
 def get_tracks(audio_path):
     # type: (str) -> list
     black_list = ['buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
                   'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
                   'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'jam_play', 'jam_on', 'jam_off',
-                  'jam_writecmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',
+                  'jam_cmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',
                   'jam_track', 'kill', 'explode']
 
     current_tracks = []
@@ -409,6 +434,7 @@ def get_tracks(audio_path):
         track_data = {}
         logger.exception("Invalid track data for {path}".format(path=os.path.join(audio_path, 'track_data.json')))
 
+    index = 0
     for track in glob.glob(os.path.join(audio_path, '*.wav')):
         bind = None
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
@@ -427,7 +453,8 @@ def get_tracks(audio_path):
         else:
             aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
         black_list.extend(aliases)
-        current_tracks.append(Track(name, aliases, track, bind))
+        current_tracks.append(Track(index, name, aliases, track, bind))
+        index += 1
 
     logger.debug("Generated track list {tracks}".format(tracks='\n'.join([repr(x) for x in current_tracks])))
     return current_tracks
@@ -440,7 +467,7 @@ def filter_aliases(alias_or_name):
     for char in alias_or_name:
         if char.isalpha() or char.isspace():
             filtered_name += char.lower()
-        elif char is not "'" or '"':
+        elif char != "'" and char != '"':
             filtered_name += ' '
     return filtered_name.strip()
 
@@ -490,3 +517,22 @@ def key_choice_override(event):
         return True
     # Otherwise, it's not compatible and can't be converted.
     return False
+
+
+def search(query):
+    # type (str) -> list
+    r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
+    results = []
+
+    if not r.ok:
+        return results
+
+    for item in r.json()['items']:
+        results.append(
+            {"title": item["snippet"]["title"],
+             "desc": item["snippet"]["description"],
+             "id": item["id"]["videoId"],
+             "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
+             }
+        )
+    return results

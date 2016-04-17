@@ -21,12 +21,11 @@ import os
 import threading
 import webbrowser
 
-import requests
 import youtube_dl
 import wx
 from ObjectListView import ColumnDefn, ObjectListView
 
-from jam_tools import wrap_exceptions
+from jam_tools import search, wrap_exceptions
 
 logger = logging.getLogger('jam.downloader')
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
@@ -256,23 +255,14 @@ class SearchDialog(wx.Dialog):
         self.search_recent.appendleft(query)
         self.search_query.SetMenu(self.search_menu())
 
-        r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
-        if not r.ok:
+        results = search
+        if not results:
             alert = wx.MessageDialog(parent=self,
                                      message="There was an error processing your request.\nPlease try again later",
                                      caption="pyjam Audio Search", style=wx.OK | wx.ICON_WARNING)
             alert.ShowModal()
             alert.Destroy()
             return
-
-        results = []
-        for item in r.json()['items']:
-            results.append(
-                {"title": item["snippet"]["title"],
-                 "desc": item["snippet"]["description"],
-                 "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
-                 }
-            )
 
         self.result_list.SetObjects(results)
 
