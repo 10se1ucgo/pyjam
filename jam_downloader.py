@@ -21,11 +21,12 @@ import os
 import threading
 import webbrowser
 
+import requests
 import youtube_dl
 import wx
 from ObjectListView import ColumnDefn, ObjectListView
 
-from jam_tools import search, wrap_exceptions
+from jam_common import wrap_exceptions
 
 logger = logging.getLogger('jam.downloader')
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
@@ -44,10 +45,10 @@ class DownloaderThread(threading.Thread):
         self.daemon = True
 
     def abort(self):
+        logger.info("Aborting audio/video downloader thread.")
         self._abort.set()
 
     def is_aborted(self):
-        logger.info("Aborting audio/video downloader thread.")
         return self._abort.isSet()
 
     @wrap_exceptions
@@ -64,9 +65,9 @@ class DownloaderThread(threading.Thread):
                     except youtube_dl.DownloadError:
                         errors.append(song_url)
                     self.downloaded += 100
-                    wx.CallAfter(self.parent.update, message=self.downloaded)
+                    wx.CallAfter(self.parent.download_update, message=self.downloaded)
                 except StopIteration:
-                    wx.CallAfter(self.parent.complete, message=errors)
+                    wx.CallAfter(self.parent.download_complete, message=errors)
                     break
 
     @wrap_exceptions
@@ -78,7 +79,7 @@ class DownloaderThread(threading.Thread):
             return
 
         percent = round((downloaded / total) * 100)
-        wx.CallAfter(self.parent.update, message=self.downloaded + percent)
+        wx.CallAfter(self.parent.download_update, message=self.downloaded + percent)
 
 
 class DownloaderDialog(wx.Dialog):
@@ -127,23 +128,14 @@ class DownloaderDialog(wx.Dialog):
         self.ShowModal()
 
     def on_ok(self, event):
-        songs = []
-        with youtube_dl.YoutubeDL() as yt_dl:
-            for url in self.audio_links.GetValue().split(','):
-                try:
-                    result = yt_dl.extract_info(url, download=False, process=False)
-                except youtube_dl.DownloadError:
-                    error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
-                                             message="Invalid/Unsupported URL!",
-                                             caption="Error!", style=wx.OK | wx.ICON_WARNING)
-                    error.ShowModal()
-                    error.Destroy()
-                    return
-
-                if 'entries' in result:
-                    songs.extend(vid['url'] for vid in list(result['entries']))
-                else:
-                    songs.append(url)
+        songs = yt_extract(self.audio_links.GetValue().split(','))
+        if not songs:
+            error = wx.MessageDialog(parent=self,
+                                     message="Invalid/Unsupported URL!",
+                                     caption="Error!", style=wx.OK | wx.ICON_WARNING)
+            error.ShowModal()
+            error.Destroy()
+            return
 
         self.num_songs = len(songs)
 
@@ -153,7 +145,7 @@ class DownloaderDialog(wx.Dialog):
         self.downloader = DownloaderThread(self, songs, self.out_dir.GetPath())
         self.downloader.start()
 
-    def update(self, message):
+    def download_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 100, total=self.num_songs)
         if self.progress_dialog and self.downloader.isAlive():
             if not self.progress_dialog.Update(value=message, newmsg="Downloaded: {prog}".format(prog=progress))[0]:
@@ -169,7 +161,7 @@ class DownloaderDialog(wx.Dialog):
                 logger.info(alert_string)
                 wx.CallAfter(self.progress_dialog.Destroy)
 
-    def complete(self, message):
+    def download_complete(self, message):
         if self.progress_dialog:
             logger.info("Beginning download")
             self.downloader.join()
@@ -255,7 +247,7 @@ class SearchDialog(wx.Dialog):
         self.search_recent.appendleft(query)
         self.search_query.SetMenu(self.search_menu())
 
-        results = search
+        results = yt_search
         if not results:
             alert = wx.MessageDialog(parent=self,
                                      message="There was an error processing your request.\nPlease try again later",
@@ -301,3 +293,38 @@ class SearchDialog(wx.Dialog):
         search = event.GetEventObject().GetLabel(event.GetId())
         self.search_query.SetValue(search)
         self.on_search(event=None)
+
+
+def yt_search(query):
+    # type (str) -> list
+    r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
+    results = []
+
+    if not r.ok:
+        return results
+
+    for item in r.json()['items']:
+        results.append(
+            {"title": item["snippet"]["title"],
+             "desc": item["snippet"]["description"],
+             "id": item["id"]["videoId"],
+             "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
+             }
+        )
+    return results
+
+
+def yt_extract(links):
+    songs = []
+    with youtube_dl.YoutubeDL() as yt_dl:
+        for url in links:
+            try:
+                result = yt_dl.extract_info(url, download=False, process=False)
+            except youtube_dl.DownloadError:
+                return songs
+
+            if 'entries' in result:
+                songs.extend(vid['url'] for vid in list(result['entries']))
+            else:
+                songs.append(url)
+        return songs

@@ -16,28 +16,28 @@
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import shutil
-import traceback
 import glob
 import json
 import logging
 from string import whitespace
 
 import psutil
-import requests
 import unidecode
 import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from jam_about import __version__
+from jam_common import wrap_exceptions
+from jam_downloader import DownloaderThread, yt_extract, yt_search
 
 try:
+    import winreg
+except ImportError:
     try:
         import _winreg as winreg
     except ImportError:
-        import winreg
-except ImportError:
-    winreg = False
+        winreg = False
 
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
@@ -76,39 +76,6 @@ WX_KEYS_CONVERSION = {
 }
 
 logger = logging.getLogger('jam.tools')
-
-
-def wrap_exceptions(func):
-    def _wrap_exceptions(*args, **kwargs):
-        # args[0] = InstanceOfSomeClass() when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
-        # This should really only be used on threads (main thread has a sys.excepthook)
-        try:
-            return func(*args, **kwargs)
-        except UnicodeError:
-            logging.exception("unicode is literally the worst valve please fix thank")
-            raise
-        except Exception:
-            if isinstance(args[0], wx.TopLevelWindow):
-                parent = args[0]
-            elif hasattr(args[0], "parent") and isinstance(args[0].parent, wx.TopLevelWindow):
-                parent = args[0].parent
-            else:
-                parent = wx.GetApp().GetTopWindow()
-            error_message = ''.join(traceback.format_exc())
-            error_dialog = wx.MessageDialog(parent=parent,
-                                            message="An error has occured\n\n" + error_message,
-                                            caption="Error!", style=wx.OK | wx.ICON_ERROR)
-            error_dialog.ShowModal()
-            error_dialog.Destroy()
-            logger.critical(error_message)
-            try:
-                args[0].abort()
-                args[0].parent.Destroy()
-            except (AttributeError, RuntimeError):
-                pass
-            raise
-
-    return _wrap_exceptions
 
 
 class Config(object):
@@ -197,11 +164,11 @@ class Track(object):
         self.bind = bind
 
     def get_aliases(self):
-        return unidecode.unidecode(str(self.aliases).strip('[]') if self.aliases else "This track has no aliases")
+        return str(self.aliases).strip('[]') if self.aliases else "This track has no aliases"
 
     def __repr__(self):
-        return unidecode.unidecode("{c}(name:{name}, aliases:{aliases}, location:{path})").format(
-            c=self.__class__, name=self.name, aliases=self.aliases, path=self.path
+        return "{c}(index:{index}, name:{name}, aliases:{aliases}, location:{path})".format(
+            c=self.__class__, index=self.index, name=self.name, aliases=self.aliases, path=self.path
         )
 
     def __str__(self):
@@ -237,6 +204,8 @@ class Jam(object):
         self.voice = os.path.normpath(os.path.join(self.game.mod_path, os.path.join(os.path.pardir, 'voice_input.wav')))
         self.observer = JamObserver()
         self.event_handler = JamHandler(self, 'jam_cmd.cfg')
+        self.total_downloads = 0
+        self.previous_bind = None
 
     def start(self):
         self.observer.schedule(self.event_handler, self.user_data, recursive=True)
@@ -273,41 +242,49 @@ class Jam(object):
 
     def on_event(self, path):
         logger.info("jam_cmd.cfg change detected, parsing config for song index/command...")
-        self.parse_config(path)
-
-    def parse_config(self, path):
         with open(path) as cfg:
             for line in cfg:
                 if line[0:4] != 'bind':
                     continue
-
                 line = line.replace('"', '').split()
-                if line[1] == self.game.relay_key:
+                if line[1] != self.game.relay_key:
+                    continue
 
-                    try:
-                        bind = line[2:]
-                    except IndexError:
-                        logger.exception("Relay key bind had no argument.")
-                        continue
+                try:
+                    bind = line[2:]
+                except IndexError:
+                    logger.exception("Relay key bind had no argument.")
+                    continue
 
-                    if bind[0].isdigit():
-                        song = int(bind[0])
-                        logger.info("Song index found, index {index}".format(index=song))
-                        try:
-                            track = self.tracks[song]
-                            self.load_song(track)
-                            return
-                        except IndexError:
-                            logger.debug("Failed to load track with index {index}, out of range.".format(index=song))
-                            continue
-                    elif bind[0] == 'search:':
-                        logger.info("Search command found: {command}".format(command=bind[1:]))
-                        self.search(' '.join(bind[1:]))
-                        return
-                    else:
-                        logger.info("Could not find a valid command or song index.")
+                if bind == self.previous_bind:
+                    continue
+                self.previous_bind = bind
 
-    def load_song(self, track):
+                if bind[0].isdigit():
+                    return self.load_song(int(bind[0]))
+                else:
+                    return self.read_command(bind)
+
+    def read_command(self, bind):
+        try:
+            args = bind[1:]
+        except IndexError:
+            logger.exception("A command was found, but it lacked any arguments.")
+            return
+
+        if bind[0].strip(':').lower() == 'search':
+            logger.info("Search command found, arguments: {args}".format(args=args))
+            self.search(' '.join(args))
+        elif bind[0].strip(':').lower() == 'download':
+            self.download(''.join(args))
+
+    def load_song(self, index):
+        try:
+            track = self.tracks[index]
+        except IndexError:
+            logger.debug("Failed to load track with index {index}, out of range.".format(index=index))
+            return
+
         shutil.copy(track.path, self.voice)
         logger.info("Song loaded: {track}".format(track=repr(track)))
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_curtrack.cfg')), 'w') as cfg:
@@ -316,7 +293,7 @@ class Jam(object):
             cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
 
     def search(self, query):
-        result = search(query)
+        result = yt_search(query)
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
             cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
             cfg.write('echo "----------------------"\n')
@@ -327,9 +304,38 @@ class Jam(object):
                 out = unidecode.unidecode("{id}: {title} - {desc}".format(
                     title=item['title'], id=item['id'], desc=item['desc']
                 ))
-                logger.info(out)
                 cfg.write('echo "{out}"\n'.format(out=out))
 
+    def download(self, urls):
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "YOUTUBE DOWNLOADER"\n')
+            cfg.write('echo "------------------"\n')
+            cfg.write('echo "Extracting URL info, starting download..."\n')
+        logger.info("Recieved urls: {urls}".format(urls=urls))
+        urls = yt_extract(urls.split(','))
+        if not urls:
+            with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+                cfg.write('echo "YOUTUBE DOWNLOADER"\n')
+                cfg.write('echo "------------------"\n')
+                cfg.write('echo "Invalid/unsupported URL(s)!"\n')
+            return
+        self.total_downloads = len(urls)
+        downloader = DownloaderThread(self, urls, os.path.abspath("downloads"))
+        downloader.start()
+        logger.info(urls)
+
+    def download_update(self, message):
+        progress = "{songs} out of {total}".format(songs=message // 100, total=self.total_downloads)
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "YOUTUBE DOWNLOAD PROGRESS"\n')
+            cfg.write('echo "-------------------------"\n')
+            cfg.write('echo "{progress} downloaded so far"\n'.format(progress=progress))
+
+    def download_complete(self, message):
+        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            cfg.write('echo "YOUTUBE DOWNLOAD PROGRESS"\n')
+            cfg.write('echo "-------------------------"\n')
+            cfg.write('echo "Download complete! Downloaded to {folder}"\n'.format(folder=os.path.abspath("downloads")))
 
 class JamHandler(FileSystemEventHandler):
     def __init__(self, calling_class, file_name):
@@ -407,14 +413,16 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
     with open(os.path.normpath(os.path.join(path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
         cfg.write('echo "Nothing to be reported at this time."\n')
+        logger.info("Wrote jam_stdin.cfg to {path}".format(path=cfg.name))
+
 
 def get_tracks(audio_path):
     # type: (str) -> list
     black_list = ['buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
                   'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
                   'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'jam_play', 'jam_on', 'jam_off',
-                  'jam_cmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',
-                  'jam_track', 'kill', 'explode']
+                  'jam_cmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',  'jam_track',
+                  'jam_stdin', 'stdin', 'kill', 'explode']
 
     current_tracks = []
     bound_keys = []
@@ -493,7 +501,6 @@ def get_steam_path():
 
 def bindable(key):
     # type: (str) -> bool or str
-
     if isinstance(key, str):
         return key.upper() in SOURCE_KEYS
     elif isinstance(key, int):
@@ -517,22 +524,3 @@ def key_choice_override(event):
         return True
     # Otherwise, it's not compatible and can't be converted.
     return False
-
-
-def search(query):
-    # type (str) -> list
-    r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
-    results = []
-
-    if not r.ok:
-        return results
-
-    for item in r.json()['items']:
-        results.append(
-            {"title": item["snippet"]["title"],
-             "desc": item["snippet"]["description"],
-             "id": item["id"]["videoId"],
-             "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
-             }
-        )
-    return results

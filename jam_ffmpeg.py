@@ -94,9 +94,9 @@ class FFmpegDownloaderThread(threading.Thread):
                         f.flush()
                         # This makes the download super slow.
                         # os.fsync(f.fileno())
-                    wx.CallAfter(self.parent.update, message=file_size_dl)
+                    wx.CallAfter(self.parent.ff_update, message=file_size_dl)
                 except StopIteration:
-                    wx.CallAfter(self.parent.complete)
+                    wx.CallAfter(self.parent.ff_complete)
                     break
 
 
@@ -109,7 +109,7 @@ class FFmpegDownloader(wx.ProgressDialog):
         self.downloader = FFmpegDownloaderThread(parent=self, url=url, file_size=self.file_size)
         self.downloader.start()
 
-    def update(self, message):
+    def ff_update(self, message):
         if self and self.downloader.isAlive():  # True PD has not been destroyed.
             if not self.Update(value=message // 1024)[0]:
                 # Cancel button pressed
@@ -124,7 +124,7 @@ class FFmpegDownloader(wx.ProgressDialog):
 
                 wx.CallAfter(self.Destroy)
 
-    def complete(self):
+    def ff_complete(self):
         if self:
             logger.info("FFmpeg download complete.")
 
@@ -186,9 +186,9 @@ class FFmpegConvertThread(threading.Thread):
                 else:
                     self.strip_encoder(file)
                 self.converted += 1
-                wx.CallAfter(self.parent.update, message=self.converted)
+                wx.CallAfter(self.parent.convert_update, message=self.converted)
             except StopIteration:
-                wx.CallAfter(self.parent.complete, message=errors)
+                wx.CallAfter(self.parent.convert_complete, message=errors)
                 break
 
     @wrap_exceptions
@@ -284,7 +284,7 @@ class FFmpegConvertDialog(wx.Dialog):
         self.Destroy()
         event.Skip()
 
-    def update(self, message):
+    def convert_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.num_songs)
         if self.progress_dialog and self.converter.isAlive():
             if message >= self.num_songs * 2:
@@ -304,7 +304,7 @@ class FFmpegConvertDialog(wx.Dialog):
                 logger.info(progress)
                 # wx.CallAfter(self.progress_dialog.Destroy)
 
-    def complete(self, message):
+    def convert_complete(self, message):
         if self.progress_dialog:
             self.converter.join()
             if len(message) != 0:
