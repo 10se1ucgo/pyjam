@@ -219,8 +219,7 @@ class MainPanel(wx.Panel):
 
     def download(self, event):
         # youtube-dl takes a long time to load, and it hinders start up time :/
-        import jam_downloader
-        jam_downloader.DownloaderDialog(self)
+        jam.downloader.DownloaderDialog(self)
 
     def list_right_click(self, event):
         self.selected_track = event.GetIndex()
@@ -238,7 +237,7 @@ class MainPanel(wx.Panel):
 
         new_aliases = dialog.GetValue()
         dialog.Destroy()
-        filtered_aliases = jam.tools.filter_aliases(new_aliases).split()
+        filtered_aliases = jam.tools.filter_alias(new_aliases).split()
         self.write_track_data("aliases", filtered_aliases)
 
     def clear_aliases(self, event):

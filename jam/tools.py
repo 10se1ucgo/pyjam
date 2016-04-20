@@ -500,21 +500,18 @@ def get_tracks(audio_path):
     index = 0
     for track in glob.glob(get_path(audio_path, '*.wav')):
         bind = None
-        name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
-        name = unidecode.unidecode(name)
-        if name in track_data and ('aliases' in track_data[name] or 'bind' in track_data[name]):
+        name = unidecode.unidecode(os.path.splitext(os.path.basename(track))[0])  # Name of file minus path/extension
+        if name in track_data and 'aliases' in track_data[name]:
             custom_aliases = track_data[name].get('aliases')
-            custom_bind = track_data[name].get('bind')
             if custom_aliases:
-                aliases = [filter_aliases(x) for x in custom_aliases if x not in black_list and x not in whitespace]
-            else:
-                aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
-
+                aliases = [filter_alias(x) for x in custom_aliases if x not in black_list and x not in whitespace]
+        else:
+            aliases = [x for x in filter_alias(name).split() if x not in black_list and x not in whitespace]
+        if name in track_data and 'bind' in track_data[name]:
+            custom_bind = track_data[name].get('bind')
             if custom_bind and bindable(custom_bind) and custom_bind not in bound_keys:
                 bind = custom_bind
                 bound_keys.extend(custom_bind)
-        else:
-            aliases = [x for x in filter_aliases(name).split() if x not in black_list and x not in whitespace]
         black_list.extend(aliases)
         current_tracks.append(Track(index, name, aliases, track, bind))
         index += 1
@@ -526,16 +523,16 @@ def get_tracks(audio_path):
     return current_tracks
 
 
-def filter_aliases(alias_or_name):
+def filter_alias(alias):
     # type: (str) -> str
     # No non-alphanumerical characters, thanks. Though, 'alias' does support quite a few of them. Too lazy to filter.
-    filtered_name = ''
-    for char in alias_or_name:
+    filtered = []
+    for char in alias:
         if char.isalpha() or char.isspace():
-            filtered_name += char.lower()
-        elif char != "'" and char != '"':
-            filtered_name += ' '
-    return filtered_name.strip()
+            filtered.append(char.lower())
+        if char == '"' or char == "'":
+            filtered.append(' ')
+    return ''.join(filtered).strip()
 
 
 def get_steam_path():
