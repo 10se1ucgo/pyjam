@@ -63,7 +63,7 @@ class MainFrame(wx.Frame):
         if sys.platform == "win32":
             icon = wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO)
         else:
-            icon = wx.Icon('pyjam.ico', wx.BITMAP_TYPE_ICO)
+            icon = wx.Icon(os.path.normpath('data/icon.ico'), wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
         self.Bind(wx.EVT_MENU, handler=panel.settings, source=settings)
@@ -543,7 +543,7 @@ def parse_args():
 
 if __name__ == '__main__':
     wx_app = wx.App()
-    bitmap = wx.Bitmap('splash.png', wx.BITMAP_TYPE_PNG)
+    bitmap = wx.Bitmap(os.path.normpath('data/splash.png'), wx.BITMAP_TYPE_PNG)
     logger = start_logger()
     sys.excepthook = exception_hook
     config = jam.tools.Config('jamconfig.json')
