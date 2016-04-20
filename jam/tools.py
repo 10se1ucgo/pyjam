@@ -438,25 +438,32 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('alias jam_track "exec jam_curtrack"\n')
         cfg.write('alias jam_stdin "exec jam_stdin"\n')
         cfg.write('alias stdin "exec jam_stdin"\n')
+        cfg.write('alias jam_help "exec jam_help"\n')
+        cfg.write('alias jam "exec jam_help"\n')
         for x, track in enumerate(tracks):
-            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'.format(x=x,
-                                                                                                 relay=relay_key,
-                                                                                                 name=track.name))
+            cfg.write('alias {x} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'.format(
+                x=x, relay=relay_key, name=track.name
+            ))
             if use_aliases:
                 for alias in track.aliases:
-                    command = 'alias {alias} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'
-                    cfg.write(command.format(alias=alias, relay=relay_key, x=x, name=track.name))
+                    cfg.write('alias {alias} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'.format(
+                        alias=alias, relay=relay_key, x=x, name=track.name
+                    ))
             if track.bind:
-                cfg.write('bind {bind} {x}\n'.format(bind=track.bind, x=x))
+                cfg.write('bind {bind} "bind {relay} {x}; echo Loaded: {name}; jam_cmd"\n'.format(
+                    bind=track.bind, relay=relay_key, x=x, name=track.name
+                ))
         cfg.write('voice_enable 1; voice_modenable 1\n')
         cfg.write('voice_forcemicrecord 0\n')
         cfg.write('voice_fadeouttime 0.0\n')
-        cfg.write('con_enable 1; showconsole\n')
-        cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
+        cfg.write('con_enable 1; hideconsole; showconsole\n')
+        cfg.write('echo "pyjam v{v} loaded.'.format(v=__version__))
+        cfg.write('jam_help\n')
         logger.info("Wrote jam.cfg to {path}".format(path=cfg.name))
     with open(get_path(path, 'cfg/jam_la.cfg'), 'w') as cfg:
+        cfg.write('exec "jam_curtrack"\n')
         for x, track in enumerate(tracks):
-            cfg.write('echo "{x}. {name}. Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
+            cfg.write('echo "{x}. {name}; Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
         logger.info("Wrote jam_la.cfg to {path}".format(path=cfg.name))
     with open(get_path(path, 'cfg/jam_curtrack.cfg'), 'w') as cfg:
         cfg.write('echo "pyjam :: No song loaded"\n')
@@ -468,16 +475,46 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('echo "Nothing to be reported at this time."\n')
         logger.info("Wrote jam_stdin.cfg to {path}".format(path=cfg.name))
     with open(get_path(path, 'cfg/jam_help.cfg'), 'w') as cfg:
-        cfg.write('echo "USE EEX"\n')
+        cfg.write('echo "pyjam song playing guide:"\n')
+        cfg.write('echo "1. Use the \'la\' or \'jam_la\' commands for a list of your audio tracks"\n')
+        cfg.write('echo "2. Type the number of the track OR one of its aliases and press enter"\n')
+        cfg.write('echo "3. Press the \'{key}\' key to start or stop the music"\n'.format(key=play_key))
+        cfg.write('echo\n')
+        cfg.write('echo "pyjam common commands:"\n')
+        cfg.write('echo "la, jam_la, jam_listaudio: list all tracks + their index and aliases"\n')
+        cfg.write('echo "jam_say, jam_saytrack: say the name of the song in all chat."\n')
+        cfg.write('echo "jam_echotrack, jam_track: echo the name of the song in console."\n')
+        cfg.write('echo "jam_help: view this help guide."\n')
+        cfg.write('echo\n')
+        cfg.write('echo "pyjam in-game downloader + converter guide:"\n')
+        cfg.write('echo "Recommended only for advanced users. This may be difficult for some people."\n')
+        cfg.write("echo \"1. Run the command `bind {relay} ''search: SEARCH TERM HERE''`.\"\n".format(relay=relay_key))
+        cfg.write('echo "2. Now run the command \'jam_cmd\'. pyjam will then run the command."\n')
+        cfg.write('echo "3. To get the results, run the commands \'stdin\' or \'jam_stdin\'."\n')
+        cfg.write("echo \"4. Then, run the command `bind {relay} ''download: IDs HERE''`.\"\n".format(relay=relay_key))
+        cfg.write('echo "The IDs of the videos should be separated with commas, like so: Dkm8Hteeh6M,MqgtVpD328o"\n')
+        cfg.write('echo "5. Run the command \'jam_cmd\' again to get pyjam to read your command."\n')
+        cfg.write('echo "6. To get periodic updates, run the commands \'stdin\' or \'jam_stdin\'."\n')
+        cfg.write('echo "7. pyjam will reload after you run \'stdin\' or \'jam_stdin\' once conversion is complete."\n')
+        cfg.write('echo "NOTE: \'\' IS SUPPOSED TO REPRESENT A DOUBLE QUOTE!"\n')
+        cfg.write('echo\n')
+        cfg.write('echo "pyjam advanced commands:"\n')
+        cfg.write('echo "stdin, jam_stdin: get output from search or downloader/converter."\n')
+        cfg.write('echo "jam_cmd: run a command (after setting the command with `bind`)"\n')
+        cfg.write("echo \"bind {relay} ''command: arguments'': set a command\"\n".format(relay=relay_key))
+        logger.info("Wrote jam_help.cfg to {path}".format(path=cfg.name))
+
 
 
 def get_tracks(audio_path):
     # type: (str) -> list
-    black_list = ['buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
-                  'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
-                  'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'jam_play', 'jam_on', 'jam_off',
-                  'jam_cmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',  'jam_track',
-                  'jam_stdin', 'stdin', 'kill', 'explode']
+    black_list = [
+        'buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
+        'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
+        'sticktog', 'takepoint', 'takingfire', 'thanks', 'drop', 'sm', 'jam_play', 'jam_on', 'jam_off',
+        'jam_cmd', 'jam_listaudio', 'jam_la', 'la', 'jam_saytrack', 'jam_say', 'jam_echotrack',  'jam_track',
+        'jam_stdin', 'stdin', 'jam_help', 'jam', 'kill', 'explode'
+    ]
 
     current_tracks = []
     bound_keys = []
@@ -493,7 +530,7 @@ def get_tracks(audio_path):
             track_data = json.load(f)
     except FileNotFoundError:
         track_data = {}
-    except (IOError, ValueError):
+    except ValueError:
         track_data = {}
         logger.exception("Invalid track data for {path}".format(path=get_path(audio_path, 'track_data.json')))
 
@@ -530,7 +567,7 @@ def filter_alias(alias):
     for char in alias:
         if char.isalpha() or char.isspace():
             filtered.append(char.lower())
-        if char == '"' or char == "'":
+        elif char != "'" and char != '"':
             filtered.append(' ')
     return ''.join(filtered).strip()
 
