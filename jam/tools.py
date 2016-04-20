@@ -27,10 +27,10 @@ import wx  # Tested w/ wxPhoenix 3.0.2
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-import jam_ffmpeg
-from jam_about import __version__
-from jam_common import wrap_exceptions
-from jam_downloader import DownloaderThread, yt_extract, yt_search
+from . import ffmpeg
+from .about import __version__
+from .common import wrap_exceptions
+from .downloader import DownloaderThread, yt_extract, yt_search
 
 try:
     import winreg
@@ -279,6 +279,8 @@ class Jam(object):
             self.search(' '.join(args))
         elif bind[0].strip(':').lower() == 'download':
             self.download(''.join(args))
+        elif bind[0].strip(':').lower() == 'convert':
+            self.convert(os.path.abspath(''.join(args)))
 
     def load_song(self, index):
         try:
@@ -336,17 +338,17 @@ class Jam(object):
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "{progress} downloaded so far"\n'.format(progress=progress))
 
-    def download_complete(self, message):
+    def download_complete(self, errors):
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
             cfg.write('echo "PYJAM DOWNLOAD PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "Download complete! Downloaded to {folder}"\n'.format(folder=os.path.abspath('_ingame_dl')))
             cfg.write('echo "Starting conversion..."\n')
-        self.convert()
+        self.convert(os.path.abspath('_ingame_dl'))
 
-    def convert(self):
+    def convert(self, folder):
         with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
-            if jam_ffmpeg is None:
+            if ffmpeg.find() is None:
                 cfg.write('echo "PYJAM CONVERTER"\n')
                 cfg.write('echo "---------------"\n')
                 cfg.write('echo "FFmpeg could not be found on the system"\n')
@@ -358,8 +360,8 @@ class Jam(object):
                 cfg.write('echo "---------------"\n')
                 cfg.write('echo "Beginning conversion..."\n')
 
-        files = glob.glob(os.path.join(os.path.abspath('_ingame_dl'), '*.*'))
-        converter = jam_ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
+        files = glob.glob(os.path.join(folder, '*.*'))
+        converter = ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
         converter.start()
 
     def convert_update(self, message):
@@ -369,7 +371,7 @@ class Jam(object):
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "{progress} converted so far"\n'.format(progress=progress))
 
-    def convert_complete(self, message):
+    def convert_complete(self, errors):
         self.stop()
         tracks = get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
@@ -379,6 +381,11 @@ class Jam(object):
             cfg.write('echo "PYJAM CONVERSION PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "Conversion complete!"\n'.format(folder=os.path.abspath('_ingame_dl')))
+            if errors:
+                cfg.write('echo "Songs converted with {errors} error(s)"\n'.format(errors=len(errors)))
+                cfg.write('echo "Error converting these files\n{errors}"\n'.format(errors=errors))
+            else:
+                cfg.write('echo "Songs converted without any errors"\n')
             cfg.write('echo "pyjam will now reload..."\n')
             cfg.write('exec jam\n')
         self.total_downloads = 0
@@ -460,6 +467,8 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     with open(os.path.normpath(os.path.join(path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
         cfg.write('echo "Nothing to be reported at this time."\n')
         logger.info("Wrote jam_stdin.cfg to {path}".format(path=cfg.name))
+    with open(os.path.normpath(os.path.join(path, 'cfg/jam_help.cfg')), 'w') as cfg:
+        cfg.write('echo "USE EEX"\n')
 
 
 def get_tracks(audio_path):

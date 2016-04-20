@@ -19,6 +19,7 @@
 # This module should NOT import anything from jam_*, as it will create potential for circular imports.
 import logging
 import traceback
+from functools import wraps
 
 import wx
 
@@ -26,8 +27,9 @@ logger = logging.getLogger('jam.common')
 
 
 def wrap_exceptions(func):
-    def _wrap_exceptions(*args, **kwargs):
-        # args[0] = InstanceOfSomeClass() when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # args[0] = when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
         # This should really only be used on threads (main thread has a sys.excepthook)
         try:
             return func(*args, **kwargs)
@@ -50,4 +52,4 @@ def wrap_exceptions(func):
             logger.critical(error_message)
             raise
 
-    return _wrap_exceptions
+    return wrapper

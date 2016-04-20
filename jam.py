@@ -28,9 +28,7 @@ import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest
 from ObjectListView import ColumnDefn, ObjectListView
 from unidecode import unidecode
 
-import jam_ffmpeg
-import jam_about
-import jam_tools
+import jam
 
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
@@ -43,7 +41,6 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam")
-        bitmap = wx.Bitmap('splash.png', wx.BITMAP_TYPE_PNG)
         splash = wx.adv.SplashScreen(bitmap, wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_NO_TIMEOUT, 0, parent=self)
         panel = MainPanel(self)
         self.SetSize((600, 400))
@@ -70,12 +67,11 @@ class MainFrame(wx.Frame):
         self.SetIcon(icon)
 
         self.Bind(wx.EVT_MENU, handler=panel.settings, source=settings)
-        self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.about_dialog(self), source=about)
-        self.Bind(wx.EVT_MENU, handler=lambda x: jam_about.Licenses(self), source=licenses)
+        self.Bind(wx.EVT_MENU, handler=lambda x: jam.about.about_dialog(self), source=about)
+        self.Bind(wx.EVT_MENU, handler=lambda x: jam.about.Licenses(self), source=licenses)
         self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
-        jam_about.update_check(self)
+        jam.about.update_check(self)
         splash.Destroy()
-        self.Show()
 
 
 class MainPanel(wx.Panel):
@@ -161,13 +157,13 @@ class MainPanel(wx.Panel):
 
     def game_select(self, event):
         self.game = self.games[self.profile.GetSelection()]
-        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
 
     def start_stop(self, event):
         if not self.game_watcher:
             self.start_stop_button.SetLabel("Starting...")
             self.start_stop_button.Disable()
-            self.game_watcher = jam_tools.Jam(config.steam_path, self.game, self.track_list)
+            self.game_watcher = jam.tools.Jam(config.steam_path, self.game, self.track_list)
             self.game_watcher.start()
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Stop")
@@ -183,11 +179,11 @@ class MainPanel(wx.Panel):
             self.parent.status_bar.SetStatusText('Status: Stopped')
 
     def refresh(self, event):
-        tracks = jam_tools.get_tracks(self.game.audio_dir)
+        tracks = jam.tools.get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
 
     def convert(self, event, in_dir=None):
-        if jam_ffmpeg.find() is None and sys.platform == "win32":
+        if jam.ffmpeg.find() is None and sys.platform == "win32":
             message = ("Couldn't detect FFmpeg in your PATH.\n"
                        "FFmpeg is required for audio conversion. Would you like to download it?")
             do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION)
@@ -197,7 +193,7 @@ class MainPanel(wx.Panel):
                     url = "https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z"
                 else:
                     url = "https://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z"
-                jam_ffmpeg.FFmpegDownloader(self, url)
+                jam.ffmpeg.FFmpegDownloader(self, url)
 
             else:
                 download_info = ("Please download it and place FFmpeg.exe in your PATH\n"
@@ -210,7 +206,7 @@ class MainPanel(wx.Panel):
 
             do_download.Destroy()
 
-        elif jam_ffmpeg.find() is None:
+        elif jam.ffmpeg.find() is None:
             message = wx.MessageDialog(parent=self,
                                        message="You require FFmpeg or avconv to convert audio. Please install it.",
                                        caption="pyjam")
@@ -218,7 +214,7 @@ class MainPanel(wx.Panel):
             message.Destroy()
 
         else:
-            jam_ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir, in_dir)
+            jam.ffmpeg.FFmpegConvertDialog(self, self.game.audio_rate, self.game.audio_dir, in_dir)
             self.game_select(event=None)
 
     def download(self, event):
@@ -242,7 +238,7 @@ class MainPanel(wx.Panel):
 
         new_aliases = dialog.GetValue()
         dialog.Destroy()
-        filtered_aliases = jam_tools.filter_aliases(new_aliases).split()
+        filtered_aliases = jam.tools.filter_aliases(new_aliases).split()
         self.write_track_data("aliases", filtered_aliases)
 
     def clear_aliases(self, event):
@@ -252,7 +248,7 @@ class MainPanel(wx.Panel):
         dialog = wx.Dialog(parent=self, title="pyjam")
 
         bind_text = wx.StaticText(parent=dialog, label="Key:")
-        bind_choice = wx.ComboBox(parent=dialog, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        bind_choice = wx.ComboBox(parent=dialog, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
         bind = bind_choice.GetStringSelection
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -264,7 +260,7 @@ class MainPanel(wx.Panel):
         top_sizer.Add(key_sizer)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
-        bind_choice.Bind(wx.EVT_KEY_DOWN, handler=jam_tools.key_choice_override)
+        bind_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override)
         dialog.Bind(wx.EVT_BUTTON, handler=lambda x: (self.write_track_data('bind', bind()), x.Skip()), id=wx.ID_OK)
 
         dialog.SetSizerAndFit(top_sizer)
@@ -276,7 +272,7 @@ class MainPanel(wx.Panel):
 
     def clear_all(self, event):
         open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
-        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
 
     def write_track_data(self, key, data):
         # type (str, object) -> None
@@ -310,7 +306,7 @@ class MainPanel(wx.Panel):
         with open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w') as f:
             json.dump(track_data, f, sort_keys=True)
 
-        self.track_list.SetObjects(jam_tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
 
     def settings(self, event):
         SetupDialog(self)
@@ -334,7 +330,7 @@ class SetupDialog(wx.Dialog):
         super(SetupDialog, self).__init__(parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         self.steam_path = wx.DirPickerCtrl(self, name="Path to Steam")
-        self.steam_path.SetInitialDirectory(jam_tools.get_steam_path())
+        self.steam_path.SetInitialDirectory(jam.tools.get_steam_path())
         steam_path_text = wx.StaticText(self, label="Path to Steam (e.g. C:\\Program Files (x86)\\Steam)")
 
         self.games = config.get_games()
@@ -348,7 +344,7 @@ class SetupDialog(wx.Dialog):
         prof_name_text = wx.StaticText(self, label="Profile/game name")
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
-        self.game_path.SetInitialDirectory(jam_tools.get_steam_path())
+        self.game_path.SetInitialDirectory(jam.tools.get_steam_path())
         game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
 
         self.audio_path = wx.DirPickerCtrl(self, name="Path to audio")
@@ -358,11 +354,11 @@ class SetupDialog(wx.Dialog):
         self.game_rate = intctrl.IntCtrl(self)
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
-        self.relay_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.relay_choice = wx.ComboBox(self, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
         self.relay_choice.SetToolTip("Nice")
 
-        self.play_choice = wx.ComboBox(self, choices=jam_tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.play_choice = wx.ComboBox(self, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
         play_text = wx.StaticText(self, label="Play audio key")
 
         self.aliases_box = wx.CheckBox(self, label="Enable aliases")
@@ -401,8 +397,8 @@ class SetupDialog(wx.Dialog):
 
         # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Very likely intentional.
         # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind.
-        self.relay_choice.Bind(wx.EVT_KEY_DOWN, handler=jam_tools.key_choice_override, source=self.relay_choice)
-        self.play_choice.Bind(wx.EVT_KEY_DOWN, handler=jam_tools.key_choice_override, source=self.play_choice)
+        self.relay_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override, source=self.relay_choice)
+        self.play_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override, source=self.play_choice)
         self.Bind(wx.EVT_COMBOBOX, handler=self.update_profile, source=self.profile)
         self.Bind(wx.EVT_BUTTON, handler=self.save, id=wx.ID_SAVE)
         self.Bind(wx.EVT_BUTTON, handler=self.new, id=wx.ID_NEW)
@@ -445,7 +441,7 @@ class SetupDialog(wx.Dialog):
         new_profile.Destroy()
 
         self.profile.Append(name)
-        self.games.append(jam_tools.Game(name=name))
+        self.games.append(jam.tools.Game(name=name))
         config.set_games(self.games)
         config.save()
 
@@ -519,7 +515,7 @@ def start_logger():
 
     _logger.info("Python {version} on {platform}".format(version=sys.version, platform=sys.platform))
     _logger.info(platform.uname())
-    _logger.info("pyjam version {v}".format(v=jam_about.__version__))
+    _logger.info("pyjam version {v}".format(v=jam.about.__version__))
 
     return _logger
 
@@ -547,8 +543,11 @@ def parse_args():
 
 if __name__ == '__main__':
     wx_app = wx.App()
+    bitmap = wx.Bitmap('splash.png', wx.BITMAP_TYPE_PNG)
     logger = start_logger()
     sys.excepthook = exception_hook
-    config = jam_tools.Config('jamconfig.json')
+    config = jam.tools.Config('jamconfig.json')
     frame = MainFrame()
+    frame.Show()
+    wx_app.SetTopWindow(frame)
     wx_app.MainLoop()

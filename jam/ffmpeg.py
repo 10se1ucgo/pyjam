@@ -27,8 +27,8 @@ import requests
 import wx
 import wx.lib.intctrl as intctrl
 
-import jam_7z
-from jam_common import wrap_exceptions
+from . import seven_zip
+from .common import wrap_exceptions
 
 try:
     from shutil import which
@@ -128,10 +128,10 @@ class FFmpegDownloader(wx.ProgressDialog):
         if self:
             logger.info("FFmpeg download complete.")
 
-            if jam_7z.find() is None:
+            if seven_zip.find() is None:
                 message_str = "FFmpeg was downloaded succesfully!\nPlease extract it. (bin/ffmpeg.7z)"
             else:
-                jam_7z.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
+                seven_zip.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
                 os.remove(os.path.normpath('bin/ffmpeg.7z'))
                 message_str = "FFmpeg was downloaded succesfully!"
             message = wx.MessageDialog(self, message_str, "pyjam")
@@ -190,7 +190,7 @@ class FFmpegConvertThread(threading.Thread):
                 self.converted += 1
                 wx.CallAfter(self.parent.convert_update, message=self.converted)
             except StopIteration:
-                wx.CallAfter(self.parent.convert_complete, message=errors)
+                wx.CallAfter(self.parent.convert_complete, errors=errors)
                 break
 
     @wrap_exceptions
@@ -306,11 +306,11 @@ class FFmpegConvertDialog(wx.Dialog):
                 logger.info(progress)
                 # wx.CallAfter(self.progress_dialog.Destroy)
 
-    def convert_complete(self, message):
+    def convert_complete(self, errors):
         if self.progress_dialog:
             self.converter.join()
-            if len(message) != 0:
-                done_string = "Songs converted with {errors} error(s)".format(errors=len(message))
+            if errors:
+                done_string = "Songs converted with {errors} error(s)".format(errors=len(errors))
             else:
                 done_string = "All songs were converted succesfully!"
             done_message = wx.MessageDialog(parent=self, message=done_string, caption="pyjam")
@@ -318,8 +318,8 @@ class FFmpegConvertDialog(wx.Dialog):
             done_message.ShowModal()
             done_message.Destroy()
 
-            if len(message) != 0:
-                errors = '\n'.join(message)
+            if errors:
+                errors = '\n'.join(errors)
                 error_dialog = wx.MessageDialog(parent=self, message="The following files caused errors\n" + errors,
                                                 caption="Conversion Error!", style=wx.OK | wx.ICON_ERROR)
                 error_dialog.ShowModal()

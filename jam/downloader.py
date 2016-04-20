@@ -26,7 +26,7 @@ import youtube_dl
 import wx
 from ObjectListView import ColumnDefn, ObjectListView
 
-from jam_common import wrap_exceptions
+from .common import wrap_exceptions
 
 logger = logging.getLogger('jam.downloader')
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
@@ -67,7 +67,7 @@ class DownloaderThread(threading.Thread):
                     self.downloaded += 100
                     wx.CallAfter(self.parent.download_update, message=self.downloaded)
                 except StopIteration:
-                    wx.CallAfter(self.parent.download_complete, message=errors)
+                    wx.CallAfter(self.parent.download_complete, errors=errors)
                     break
 
     @wrap_exceptions
@@ -161,12 +161,12 @@ class DownloaderDialog(wx.Dialog):
                 logger.info(alert_string)
                 wx.CallAfter(self.progress_dialog.Destroy)
 
-    def download_complete(self, message):
+    def download_complete(self, errors):
         if self.progress_dialog:
             logger.info("Beginning download")
             self.downloader.join()
-            if len(message) != 0:
-                done_string = "Songs downloaded with {errors} error(s)".format(errors=len(message))
+            if errors:
+                done_string = "Songs downloaded with {errors} error(s)".format(errors=len(errors))
             else:
                 done_string = "All songs were downloaded succesfully!"
             logger.info(done_string)
@@ -174,8 +174,8 @@ class DownloaderDialog(wx.Dialog):
             done_message.ShowModal()
             done_message.Destroy()
 
-            if len(message) != 0:
-                errors = '\n'.join(message)
+            if errors:
+                errors = '\n'.join(errors)
                 logger.critical("Error downloading these these URLs:\n{errors}".format(errors=errors))
                 error_dialog = wx.MessageDialog(parent=self, message="The following URLs caused errors\n" + errors,
                                                 caption="Download Error!", style=wx.ICON_ERROR)

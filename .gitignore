@@ -9,10 +9,8 @@ __pycache__/
 dist/
 bin/
 
-# Misc.
+# Default audio folder.
 audio/
-other/
-icon/
 
 # flake8
 tox.ini
@@ -22,6 +20,9 @@ tox.ini
 
 # Config
 jamconfig.json
+
+# Ingame downloader/converter
+_ingame_dl/
 
 # My markdown compiler
 README.html
