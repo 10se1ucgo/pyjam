@@ -26,7 +26,7 @@ import youtube_dl
 import wx
 from ObjectListView import ColumnDefn, ObjectListView
 
-from .common import wrap_exceptions
+from .common import wrap_exceptions, get_path
 
 logger = logging.getLogger('jam.downloader')
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
@@ -37,7 +37,7 @@ class DownloaderThread(threading.Thread):
         super(DownloaderThread, self).__init__()
         self.parent = parent
         self.song_urls = song_urls
-        self.opts = opts or {'format': 'bestaudio/best', 'outtmpl': os.path.join(dest, '%(title)s.%(ext)s'),
+        self.opts = opts or {'format': 'bestaudio/best', 'outtmpl': get_path(dest, '%(title)s.%(ext)s'),
                              'progress_hooks': [self.progress_hook], 'logger': logger}
         self.downloaded = 0
         self._abort = threading.Event()

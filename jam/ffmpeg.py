@@ -28,7 +28,7 @@ import wx
 import wx.lib.intctrl as intctrl
 
 from . import seven_zip
-from .common import wrap_exceptions
+from .common import wrap_exceptions, get_path
 
 try:
     from shutil import which
@@ -131,8 +131,8 @@ class FFmpegDownloader(wx.ProgressDialog):
             if seven_zip.find() is None:
                 message_str = "FFmpeg was downloaded succesfully!\nPlease extract it. (bin/ffmpeg.7z)"
             else:
-                seven_zip.extract_single(os.path.normpath('bin/ffmpeg.7z'), 'ffmpeg.exe', os.path.normpath('bin/'))
-                os.remove(os.path.normpath('bin/ffmpeg.7z'))
+                seven_zip.extract_single(get_path('bin/ffmpeg.7z'), 'ffmpeg.exe', get_path('bin/'))
+                os.remove(get_path('bin/ffmpeg.7z'))
                 message_str = "FFmpeg was downloaded succesfully!"
             message = wx.MessageDialog(self, message_str, "pyjam")
             message.ShowModal()
@@ -170,7 +170,7 @@ class FFmpegConvertThread(threading.Thread):
         while not self.is_aborted():
             try:
                 track = next(tracks)
-                file = os.path.join(self.dest, os.path.splitext(os.path.basename(track))[0])
+                file = get_path(self.dest, os.path.splitext(os.path.basename(track))[0])
                 logger.info("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
                 logger.info("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
                 logger.info("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
@@ -351,7 +351,7 @@ def find():
         # Tested on VM, it worked on Linux Mint.
         ff = which('ffmpeg') or which('bin/ffmpeg') or which('avconv')
 
-    return os.path.normpath(ff) if ff else None
+    return get_path(ff) if ff else None
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):

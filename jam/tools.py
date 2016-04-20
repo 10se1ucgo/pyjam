@@ -29,7 +29,7 @@ from watchdog.events import FileSystemEventHandler
 
 from . import ffmpeg
 from .about import __version__
-from .common import wrap_exceptions
+from .common import wrap_exceptions, get_path
 from .downloader import DownloaderThread, yt_extract, yt_search
 
 try:
@@ -89,8 +89,8 @@ class Config(object):
     def new(self):
         # this is ugly
         steam = get_steam_path()
-        csgo_path = os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo'))
-        css_path = os.path.normpath(os.path.join(steam, 'steamapps/common/Counter-Strike Source/css'))
+        csgo_path = get_path(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')
+        css_path = get_path(steam, 'steamapps/common/Counter-Strike Source/css')
         default = {'games':
                    [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': 22050,
                      'name': 'Counter-Strike: Global Offensive',
@@ -143,8 +143,8 @@ class Config(object):
     def get_games(self):
         # type: () -> list
         # ugly as sin
-        return [Game(os.path.normpath(game.get('audio_dir', os.curdir)), game.get('audio_rate', 11025),
-                     os.path.normpath(game.get('mod_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
+        return [Game(get_path(game.get('audio_dir', os.curdir)), game.get('audio_rate', 11025),
+                     get_path(game.get('mod_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
                      game.get('relay_key', '='), game.get('use_aliases', True)) for game in self.games]
 
     def set_games(self, new_games):
@@ -201,8 +201,8 @@ class Jam(object):
         self.steam_path = steam_path
         self.game = game_class
         self.track_list = track_list
-        self.user_data = os.path.normpath(os.path.join(self.steam_path, 'userdata'))
-        self.voice = os.path.normpath(os.path.join(self.game.mod_path, os.path.join(os.path.pardir, 'voice_input.wav')))
+        self.user_data = get_path(self.steam_path, 'userdata')
+        self.voice = get_path(self.game.mod_path, get_path(os.path.pardir, 'voice_input.wav'))
         self.observer = JamObserver()
         self.event_handler = JamHandler(self, 'jam_cmd.cfg')
         self.total_downloads = 0
@@ -214,7 +214,7 @@ class Jam(object):
         write_configs(self.game.mod_path, self.track_list.GetObjects(), self.game.play_key,
                       self.game.relay_key, self.game.use_aliases)
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/autoexec.cfg')), 'a') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/autoexec.cfg'), 'a') as cfg:
             cfg.write('\nexec jam\n')
 
     def stop(self):
@@ -222,20 +222,20 @@ class Jam(object):
         self.observer.join()
         logger.info("Stopping...")
         try:
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam.cfg')))
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_la.cfg')))
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_curtrack.cfg')))
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_saycurtrack.cfg')))
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')))
-            os.remove(os.path.normpath(os.path.join(self.game.mod_path, self.voice)))
+            os.remove(get_path(self.game.mod_path, 'cfg/jam.cfg'))
+            os.remove(get_path(self.game.mod_path, 'cfg/jam_la.cfg'))
+            os.remove(get_path(self.game.mod_path, 'cfg/jam_curtrack.cfg'))
+            os.remove(get_path(self.game.mod_path, 'cfg/jam_saycurtrack.cfg'))
+            os.remove(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'))
+            os.remove(get_path(self.game.mod_path, self.voice))
             logger.info("Succesfully removed pyjam config files.")
         except (FileNotFoundError, IOError):
             logger.exception("Could not remove some files:")
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/autoexec.cfg'))) as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/autoexec.cfg')) as cfg:
             autoexec = cfg.readlines()
 
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/autoexec.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/autoexec.cfg'), 'w') as cfg:
             for line in autoexec:
                 if 'exec jam' not in line:
                     cfg.write(line)
@@ -244,7 +244,7 @@ class Jam(object):
 
     def on_event(self, path):
         logger.info("jam_cmd.cfg change detected, parsing config for song index/command...")
-        with open(path) as cfg:
+        with open(get_path(path)) as cfg:
             for line in cfg:
                 if line[0:4] != 'bind':
                     continue
@@ -291,14 +291,14 @@ class Jam(object):
 
         shutil.copy(track.path, self.voice)
         logger.info("Song loaded: {track}".format(track=repr(track)))
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_curtrack.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_curtrack.cfg'), 'w') as cfg:
             cfg.write('echo "pyjam :: Song :: {name}"\n'.format(name=track.name))
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_saycurtrack.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_saycurtrack.cfg'), 'w') as cfg:
             cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
 
     def search(self, query):
         result = yt_search(query)
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
             cfg.write('echo "----------------------"\n')
             if not result:
@@ -314,14 +314,14 @@ class Jam(object):
         if self.total_downloads:
             # A download is already in progress.
             return
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "PYJAM DOWNLOADER"\n')
             cfg.write('echo "------------------"\n')
             cfg.write('echo "Extracting URL info, starting download..."\n')
         logger.info("Recieved urls: {urls}".format(urls=urls))
         urls = yt_extract(urls.split(','))
         if not urls:
-            with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+            with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
                 cfg.write('echo "PYJAM DOWNLOADER"\n')
                 cfg.write('echo "------------------"\n')
                 cfg.write('echo "Invalid/unsupported URL(s)!"\n')
@@ -333,13 +333,13 @@ class Jam(object):
 
     def download_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 100, total=self.total_downloads)
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "PYJAM DOWNLOAD PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "{progress} downloaded so far"\n'.format(progress=progress))
 
     def download_complete(self, errors):
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "PYJAM DOWNLOAD PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "Download complete! Downloaded to {folder}"\n'.format(folder=os.path.abspath('_ingame_dl')))
@@ -347,7 +347,7 @@ class Jam(object):
         self.convert(os.path.abspath('_ingame_dl'))
 
     def convert(self, folder):
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             if ffmpeg.find() is None:
                 cfg.write('echo "PYJAM CONVERTER"\n')
                 cfg.write('echo "---------------"\n')
@@ -360,13 +360,13 @@ class Jam(object):
                 cfg.write('echo "---------------"\n')
                 cfg.write('echo "Beginning conversion..."\n')
 
-        files = glob.glob(os.path.join(folder, '*.*'))
+        files = glob.glob(get_path(folder, '*.*'))
         converter = ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
         converter.start()
 
     def convert_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.total_downloads)
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "PYJAM CONVERSION PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "{progress} converted so far"\n'.format(progress=progress))
@@ -377,7 +377,7 @@ class Jam(object):
         self.track_list.SetObjects(tracks)
         self.observer = JamObserver()  # Create new Observer object. Threads cannot be restarted.
         self.start()
-        with open(os.path.normpath(os.path.join(self.game.mod_path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+        with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "PYJAM CONVERSION PROGRESS"\n')
             cfg.write('echo "-------------------------"\n')
             cfg.write('echo "Conversion complete!"\n'.format(folder=os.path.abspath('_ingame_dl')))
@@ -423,7 +423,7 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     # Lazy debugging stuff:
     # logger.write = lambda x: logger.debug(x)
     # cfg = logger
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam.cfg'), 'w') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
         cfg.write('alias jam_play jam_on\n')
         cfg.write('alias jam_on "voice_inputfromfile 1; voice_loopback 1; +voicerecord; alias jam_play jam_off"\n')
@@ -454,20 +454,20 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         cfg.write('con_enable 1; showconsole\n')
         cfg.write('echo "pyjam v{v} loaded. Type "la" or "jam_listaudio" for a list of tracks.\n'.format(v=__version__))
         logger.info("Wrote jam.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam_la.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam_la.cfg'), 'w') as cfg:
         for x, track in enumerate(tracks):
             cfg.write('echo "{x}. {name}. Aliases: {aliases}"\n'.format(x=x, name=track.name, aliases=track.aliases))
         logger.info("Wrote jam_la.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam_curtrack.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam_curtrack.cfg'), 'w') as cfg:
         cfg.write('echo "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_curtrack.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam_saycurtrack.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam_saycurtrack.cfg'), 'w') as cfg:
         cfg.write('say "pyjam :: No song loaded"\n')
         logger.info("Wrote jam_saycurtrack.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam_stdin.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
         cfg.write('echo "Nothing to be reported at this time."\n')
         logger.info("Wrote jam_stdin.cfg to {path}".format(path=cfg.name))
-    with open(os.path.normpath(os.path.join(path, 'cfg/jam_help.cfg')), 'w') as cfg:
+    with open(get_path(path, 'cfg/jam_help.cfg'), 'w') as cfg:
         cfg.write('echo "USE EEX"\n')
 
 
@@ -489,16 +489,16 @@ def get_tracks(audio_path):
     # }
     logger.info("Generating track list with path {path}".format(path=audio_path))
     try:
-        with open(os.path.join(audio_path, 'track_data.json')) as f:
+        with open(get_path(audio_path, 'track_data.json')) as f:
             track_data = json.load(f)
     except FileNotFoundError:
         track_data = {}
     except (IOError, ValueError):
         track_data = {}
-        logger.exception("Invalid track data for {path}".format(path=os.path.join(audio_path, 'track_data.json')))
+        logger.exception("Invalid track data for {path}".format(path=get_path(audio_path, 'track_data.json')))
 
     index = 0
-    for track in glob.glob(os.path.join(audio_path, '*.wav')):
+    for track in glob.glob(get_path(audio_path, '*.wav')):
         bind = None
         name = os.path.splitext(os.path.basename(track))[0]  # Name of file minus path/extension
         name = unidecode.unidecode(name)

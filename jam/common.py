@@ -18,6 +18,7 @@
 # A module that will probably be filled with common tools for all other jam_* modules.
 # This module should NOT import anything from jam_*, as it will create potential for circular imports.
 import logging
+import os
 import traceback
 from functools import wraps
 
@@ -53,3 +54,9 @@ def wrap_exceptions(func):
             raise
 
     return wrapper
+
+
+def get_path(path1, path2=None):
+    if path2:
+        return os.path.normpath(os.path.join(path1, path2))
+    return os.path.normpath(path1)
