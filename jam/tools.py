@@ -76,7 +76,7 @@ WX_KEYS_CONVERSION = {
     wx.WXK_NUMPAD7: "KP_HOME", wx.WXK_NUMPAD8: "KP_UPARROW", wx.WXK_NUMPAD9: "KP_PGUP"
 }
 
-logger = logging.getLogger('jam.tools')
+logger = logging.getLogger(__name__)
 
 
 class Config(object):
@@ -128,6 +128,7 @@ class Config(object):
                             game['relay_key'] = '='
                     self.steam_path = config_json.get('steam_path', os.curdir)
                     self.games = config_json.get('games', [])
+                    self.logger = config_json.get('logger')
         except FileNotFoundError:
             self.new()
             return self.load()
@@ -177,7 +178,7 @@ class Track(object):
 
 
 class Game(object):
-    def __init__(self, audio_dir=os.curdir, audio_rate='11025', mod_path=os.curdir,
+    def __init__(self, audio_dir=os.curdir, audio_rate=11025, mod_path=os.curdir,
                  name=None, play_key='F8', relay_key='=', use_aliases=True):
         self.audio_dir = audio_dir
         self.audio_rate = audio_rate

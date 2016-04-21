@@ -19,5 +19,45 @@
             "use_aliases": true
         }
     ],
+    "logger": {
+        "formatters": {
+            "default": {
+                "class": "logging.Formatter",
+                "format": "%(asctime)s::%(name)s::%(levelname)s::%(message)s"
+            }
+        },
+        "handlers": {
+            "file": {
+                "class": "logging.FileHandler",
+                "filename": "pyjam.log",
+                "formatter": "default",
+                "level": "INFO",
+                "mode": "a"
+            },
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "level": "DEBUG",
+                "stream": "ext://sys.stdout"
+            }
+        },
+        "loggers": {
+            "jam": {
+                "handlers": [
+                    "stdout",
+                    "file"
+                ],
+                "level": "DEBUG"
+            },
+            "pyjam": {
+                "handlers": [
+                    "stdout",
+                    "file"
+                ],
+                "level": "DEBUG"
+            }
+        },
+        "version": 1
+    },
     "steam_path": "c:/program files (x86)/steam"
 }

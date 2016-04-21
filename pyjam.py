@@ -14,9 +14,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
-import argparse
 import json
 import logging
+import logging.config
 import os
 import platform
 import sys
@@ -26,7 +26,6 @@ import wx  # Tested w/ wxPhoenix 3.0.3
 import wx.adv
 import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest version of wxPython-Pheonix!
 from ObjectListView import ColumnDefn, ObjectListView
-from unidecode import unidecode
 
 import jam
 
@@ -41,6 +40,7 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam")
+        bitmap = wx.Bitmap(os.path.normpath('data/splash.png'), wx.BITMAP_TYPE_PNG)
         splash = wx.adv.SplashScreen(bitmap, wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_NO_TIMEOUT, 0, parent=self)
         panel = MainPanel(self)
         self.SetSize((600, 400))
@@ -56,9 +56,7 @@ class MainFrame(wx.Frame):
         menu_bar.Append(file_menu, "&File")
         menu_bar.Append(help_menu, "&Help")
         self.SetMenuBar(menu_bar)
-
         self.status_bar = self.CreateStatusBar()
-        self.status_bar.SetStatusText('Status: Stopped')
 
         if sys.platform == "win32":
             icon = wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO)
@@ -72,6 +70,9 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
         jam.about.update_check(self)
         splash.Destroy()
+        logger.info("Ready.")
+        self.status_bar.SetStatusText('Status: Ready')
+        self.Show()
 
 
 class MainPanel(wx.Panel):
@@ -487,37 +488,40 @@ class SetupDialog(wx.Dialog):
 
 
 def start_logger():
-    debug = parse_args().debug
-    _logger = logging.getLogger('jam')
-    _logger.setLevel(logging.DEBUG)
+    sys.excepthook = exception_hook
+    if config.logger:
+        logging.config.dictConfig(config.logger)
+    else:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter(fmt=unidecode('%(asctime)s %(levelname)s: %(message)s'), datefmt='%H:%M:%S')
+        formatter = logging.Formatter(fmt='%(asctime)s::%(name)s::%(levelname)s::%(message)s', datefmt='%H:%M:%S')
 
-    if not hasattr(sys, 'frozen'):
-        stdout_log = logging.StreamHandler(sys.stdout)
-        stdout_log.setLevel(logging.DEBUG)
-        stdout_log.setFormatter(formatter)
-        _logger.addHandler(stdout_log)
+        if not hasattr(sys, 'frozen'):
+            stdout_log = logging.StreamHandler(sys.stdout)
+            stdout_log.setLevel(logging.DEBUG)
+            stdout_log.setFormatter(formatter)
+            root_logger.addHandler(stdout_log)
 
-    try:
-        file_log = logging.FileHandler(filename='pyjam.log')
-        file_log.setLevel(logging.DEBUG if debug else logging.INFO)
-        file_log.setFormatter(formatter)
-        _logger.addHandler(file_log)
-    except (OSError, IOError):
-        error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
-                                        message="Could not create log file, errors will not be recorded!",
-                                        caption="Error!", style=wx.OK | wx.ICON_ERROR)
-        error_dialog.ShowModal()
-        error_dialog.Destroy()
-        _logger.exception("Could not create log file.")
+        try:
+            file_log = logging.FileHandler(filename='pyjam.log')
+            file_log.setLevel(logging.INFO)
+            file_log.setFormatter(formatter)
+            root_logger.addHandler(file_log)
+        except (OSError, IOError):
+            error_dialog = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+                                            message="Could not create log file, errors will not be recorded!",
+                                            caption="Error!", style=wx.OK | wx.ICON_ERROR)
+            error_dialog.ShowModal()
+            error_dialog.Destroy()
+            root_logger.exception("Could not create log file.")
 
+    _logger = logging.getLogger('pyjam')
     _logger.info("Python {version} on {platform}".format(version=sys.version, platform=sys.platform))
     _logger.info(platform.uname())
     _logger.info("pyjam version {v}".format(v=jam.about.__version__))
 
     return _logger
-
 
 def exception_hook(error, value, trace):
     error_message = ''.join(traceback.format_exception(error, value, trace))
@@ -534,19 +538,9 @@ def exception_hook(error, value, trace):
         sys.exit(1)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--debug", help="Write extra debug output to file.", action="store_true")
-    return parser.parse_args()
-
-
 if __name__ == '__main__':
     wx_app = wx.App()
-    bitmap = wx.Bitmap(os.path.normpath('data/splash.png'), wx.BITMAP_TYPE_PNG)
-    logger = start_logger()
-    sys.excepthook = exception_hook
     config = jam.tools.Config('jamconfig.json')
+    logger = start_logger()
     frame = MainFrame()
-    frame.Show()
-    wx_app.SetTopWindow(frame)
     wx_app.MainLoop()

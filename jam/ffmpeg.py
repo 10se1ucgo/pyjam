@@ -35,7 +35,7 @@ try:
 except ImportError:
     from shutilwhich import which
 
-logger = logging.getLogger('jam.ffmpeg')
+logger = logging.getLogger(__name__)
 ENCODER_START = 36
 ENCODER_LEN = 34
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME

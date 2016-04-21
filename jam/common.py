@@ -24,7 +24,7 @@ from functools import wraps
 
 import wx
 
-logger = logging.getLogger('jam.common')
+logger = logging.getLogger(__name__)
 
 
 def wrap_exceptions(func):
