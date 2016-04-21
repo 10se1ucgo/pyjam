@@ -20,6 +20,12 @@
         }
     ],
     "logger": {
+        "disable_existing_loggers": false,
+        "filters": {
+            "errors": {
+                "()": "ext://__main__.ErrorFilter"
+            }
+        },
         "formatters": {
             "default": {
                 "class": "logging.Formatter",
@@ -38,13 +44,29 @@
                 "class": "logging.StreamHandler",
                 "formatter": "default",
                 "level": "DEBUG",
-                "stream": "ext://sys.stdout"
+                "stream": "ext://sys.stdout",
+                "filters": ["errors"]
+            },
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "level": "ERROR",
+                "stream": "ext://sys.stderr"
             }
         },
         "loggers": {
+            "root": {
+                "handlers": [
+                    "stdout",
+                    "stderr",
+                    "file"
+                ],
+                "level": "DEBUG"
+            },
             "jam": {
                 "handlers": [
                     "stdout",
+                    "stderr",
                     "file"
                 ],
                 "level": "DEBUG"
@@ -52,6 +74,15 @@
             "pyjam": {
                 "handlers": [
                     "stdout",
+                    "stderr",
+                    "file"
+                ],
+                "level": "DEBUG"
+            },
+            "requests": {
+                "handlers": [
+                    "stdout",
+                    "stderr",
                     "file"
                 ],
                 "level": "DEBUG"

@@ -462,7 +462,7 @@ class SetupDialog(wx.Dialog):
         self.game.use_aliases = self.aliases_box.IsChecked()
         config.set_games(self.games)
         config.save()
-        self.games = config.get_games()  # Just in case, to keep it in sync.
+        self.update_profile(event=None)
         if not os.path.exists(self.audio_path.GetPath()):
             os.makedirs(self.audio_path.GetPath())
 
@@ -487,8 +487,12 @@ class SetupDialog(wx.Dialog):
         logger.info("Game removed: {name}".format(name=name))
 
 
+class ErrorFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno < logging.ERROR
+
+
 def start_logger():
-    sys.excepthook = exception_hook
     if config.logger:
         logging.config.dictConfig(config.logger)
     else:
@@ -501,7 +505,13 @@ def start_logger():
             stdout_log = logging.StreamHandler(sys.stdout)
             stdout_log.setLevel(logging.DEBUG)
             stdout_log.setFormatter(formatter)
+            stdout_log.addFilter(ErrorFilter())
             root_logger.addHandler(stdout_log)
+
+            stderr_log = logging.StreamHandler(sys.stderr)
+            stderr_log.setLevel(logging.ERROR)
+            stderr_log.setFormatter(formatter)
+            root_logger.addHandler(stderr_log)
 
         try:
             file_log = logging.FileHandler(filename='pyjam.log')
@@ -542,5 +552,6 @@ if __name__ == '__main__':
     wx_app = wx.App()
     config = jam.tools.Config('jamconfig.json')
     logger = start_logger()
+    sys.excepthook = exception_hook
     frame = MainFrame()
     wx_app.MainLoop()

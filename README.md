@@ -3,9 +3,6 @@
 
 pyjam is an open source, cross-platform audio player for Source and GoldSrc engine based games, written in Python
 
-~~It doesn't work yet, by the way!~~  
-As of 2/21/16, it works!
-
 # FEATURES
 * Cross-platform -- Supports (in theory) Windows, GNU/Linux and OSX!
 * Open source -- Licensed under the GNU General Public License, v3.
@@ -47,7 +44,8 @@ As of 2/21/16, it works!
    4. Lastly, hit the `Refresh tracks` button in order to make sure that pyjam has detected all of your songs.
 4. Ready? Press `Start`, and load up your game.
    - If pyjam is not immediately loaded when you start the game, type `exec jam.cfg` in console to fix that.
-5. Have fun!
+5. Run `jam_help` in console to get help on usage.
+6. Have fun!
 
 
 # REQUIREMENTS
@@ -95,9 +93,7 @@ As of 2/21/16, it works!
 
 
 # KNOWN ISSUES
-~~Config editor doesn't correctly save config on Linux. (Tested on latest version of Linux Mint as of 2/28)~~
-~~Workaround: Edit jamconfig.json manually.~~
-It's working on Debian 8. I'm not sure what's happening to Mint.
+None!
 
 
 
