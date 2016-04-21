@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 def wrap_exceptions(func):
+    """Wraps a function with an "exception hook" for threads.
+
+    Args:
+        func (function): The path string to be normalized. (If path2 is given, they will be joined)
+
+    Returns:
+        function: The wrapped function
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         # args[0] = when wrapping a class method. (IT BETTER BE. WHYDOISUCKATPROGRAMMINGOHGOD)
@@ -57,6 +65,20 @@ def wrap_exceptions(func):
 
 
 def get_path(path1, path2=None):
+    """Convert a string (or two) to a normalized (optionally joined) path string.
+
+    Args:
+        path1 (str): The path string to be normalized. (If path2 is given, they will be joined)
+        path2 (Optional[str]): The second path string to be joined with path1. Defaults to None.
+
+    Returns:
+        str: The normalized (and joined, if path2 != None)
+
+    Raises:
+        TypeError: If `path1` or `path2` are not strings.
+    """
     if path2:
         return os.path.normpath(os.path.join(path1, path2))
     return os.path.normpath(path1)
+
+wrap_exceptions('meme')
