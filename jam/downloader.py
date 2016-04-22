@@ -298,6 +298,14 @@ class SearchDialog(wx.Dialog):
 
 
 def yt_search(query):
+    """Search YouTube for a list of videos.
+
+    Args:
+        query (str): The search query.
+
+    Returns:
+        list or list[dict]: The list containing the dictionaries of the results. List is empty if there was an error.
+    """
     # type (str) -> list
     r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
     results = []
@@ -317,6 +325,14 @@ def yt_search(query):
 
 
 def yt_extract(links):
+    """Extract individual URLs from a playlist.
+
+    Args:
+        links (list[str]): A list of the URLs.
+
+    Returns:
+        list[str]: The list of extracted URLs.
+    """
     songs = []
     with youtube_dl.YoutubeDL() as yt_dl:
         for url in links:

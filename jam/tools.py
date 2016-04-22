@@ -625,7 +625,6 @@ def bindable(key):
         bool or str: If True, the key is already a valid Source Engine key. If a str, the key was able to be converted.
             False otherwise.
     """
-    # type: (str) -> bool or str
     if isinstance(key, str):
         return key.upper() in SOURCE_KEYS
     elif isinstance(key, int):

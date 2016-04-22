@@ -348,7 +348,6 @@ def find():
     Returns:
         None or str: The path to FFmpeg or avconv. None if not found.
     """
-    # type: () -> str or None
     if sys.platform == "win32":
         ff = which('ffmpeg.exe') or which('bin/ffmpeg.exe') or which('avconv')
     else:
@@ -372,7 +371,6 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     Returns:
         subprocess.Popen(): The subprocess.Popen object representing the command.
     """
-    # type: (str, str, int or str, int, str) -> subprocess.Popen object
     cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100', '-acodec', codec,
            '-ar', str(rate), '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
