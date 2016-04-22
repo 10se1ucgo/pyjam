@@ -31,7 +31,7 @@ def wrap_exceptions(func):
     """Wraps a function with an "exception hook" for threads.
 
     Args:
-        func (function): The path string to be normalized. (If path2 is given, they will be joined)
+        func (function): The function to wrap.
 
     Returns:
         function: The wrapped function
