@@ -21,8 +21,9 @@ tox.ini
 # Config
 jamconfig.json
 
-# Ingame downloader/converter
+# Downloads
 _ingame_dl/
+downloads/
 
 # My markdown compiler
 README.html

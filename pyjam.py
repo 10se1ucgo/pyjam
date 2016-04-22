@@ -28,6 +28,7 @@ import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest
 from ObjectListView import ColumnDefn, ObjectListView
 
 import jam
+from jam.common import Game, get_steam_path, get_path
 
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
@@ -68,6 +69,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, handler=lambda x: jam.about.about_dialog(self), source=about)
         self.Bind(wx.EVT_MENU, handler=lambda x: jam.about.Licenses(self), source=licenses)
         self.Bind(wx.EVT_CLOSE, handler=panel.on_exit)
+
         jam.about.update_check(self)
         splash.Destroy()
         logger.info("Ready.")
@@ -158,13 +160,14 @@ class MainPanel(wx.Panel):
 
     def game_select(self, event):
         self.game = self.games[self.profile.GetSelection()]
-        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
 
     def start_stop(self, event):
         if not self.game_watcher:
+            self.refresh(event=None)
             self.start_stop_button.SetLabel("Starting...")
             self.start_stop_button.Disable()
-            self.game_watcher = jam.tools.Jam(config.steam_path, self.game, self.track_list)
+            self.game_watcher = jam.jam.Jam(config.steam_path, self.game, self.track_list)
             self.game_watcher.start()
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Stop")
@@ -180,7 +183,7 @@ class MainPanel(wx.Panel):
             self.parent.status_bar.SetStatusText('Status: Stopped')
 
     def refresh(self, event):
-        tracks = jam.tools.get_tracks(self.game.audio_dir)
+        tracks = jam.jam.get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
 
     def convert(self, event, in_dir=None):
@@ -238,7 +241,7 @@ class MainPanel(wx.Panel):
 
         new_aliases = dialog.GetValue()
         dialog.Destroy()
-        filtered_aliases = jam.tools.filter_alias(new_aliases).split()
+        filtered_aliases = jam.jam.filter_alias(new_aliases).split()
         self.write_track_data("aliases", filtered_aliases)
 
     def clear_aliases(self, event):
@@ -248,7 +251,7 @@ class MainPanel(wx.Panel):
         dialog = wx.Dialog(parent=self, title="pyjam")
 
         bind_text = wx.StaticText(parent=dialog, label="Key:")
-        bind_choice = wx.ComboBox(parent=dialog, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        bind_choice = wx.ComboBox(parent=dialog, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
         bind = bind_choice.GetStringSelection
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -260,7 +263,7 @@ class MainPanel(wx.Panel):
         top_sizer.Add(key_sizer)
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
-        bind_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override)
+        bind_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.common.key_choice_override)
         dialog.Bind(wx.EVT_BUTTON, handler=lambda x: (self.write_track_data('bind', bind()), x.Skip()), id=wx.ID_OK)
 
         dialog.SetSizerAndFit(top_sizer)
@@ -272,7 +275,7 @@ class MainPanel(wx.Panel):
 
     def clear_all(self, event):
         open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
-        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
 
     def write_track_data(self, key, data):
         # type (str, object) -> None
@@ -306,7 +309,7 @@ class MainPanel(wx.Panel):
         with open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w') as f:
             json.dump(track_data, f, sort_keys=True)
 
-        self.track_list.SetObjects(jam.tools.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
 
     def settings(self, event):
         SetupDialog(self)
@@ -330,7 +333,7 @@ class SetupDialog(wx.Dialog):
         super(SetupDialog, self).__init__(parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         self.steam_path = wx.DirPickerCtrl(self, name="Path to Steam")
-        self.steam_path.SetInitialDirectory(jam.tools.get_steam_path())
+        self.steam_path.SetInitialDirectory(jam.common.get_steam_path())
         steam_path_text = wx.StaticText(self, label="Path to Steam (e.g. C:\\Program Files (x86)\\Steam)")
 
         self.games = config.get_games()
@@ -344,7 +347,7 @@ class SetupDialog(wx.Dialog):
         prof_name_text = wx.StaticText(self, label="Profile/game name")
 
         self.game_path = wx.DirPickerCtrl(self, name="Path to game")
-        self.game_path.SetInitialDirectory(jam.tools.get_steam_path())
+        self.game_path.SetInitialDirectory(jam.common.get_steam_path())
         game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
 
         self.audio_path = wx.DirPickerCtrl(self, name="Path to audio")
@@ -354,11 +357,11 @@ class SetupDialog(wx.Dialog):
         self.game_rate = intctrl.IntCtrl(self)
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
-        self.relay_choice = wx.ComboBox(self, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.relay_choice = wx.ComboBox(self, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
         self.relay_choice.SetToolTip("Nice")
 
-        self.play_choice = wx.ComboBox(self, choices=jam.tools.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.play_choice = wx.ComboBox(self, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
         play_text = wx.StaticText(self, label="Play audio key")
 
         self.aliases_box = wx.CheckBox(self, label="Enable aliases")
@@ -397,8 +400,8 @@ class SetupDialog(wx.Dialog):
 
         # self.Bind doesn't seem to work for wx.EVT_KEY_DOWN or wx.EVT_CHAR. Very likely intentional.
         # http://wiki.wxpython.org/self.Bind%20vs.%20self.button.Bind.
-        self.relay_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override, source=self.relay_choice)
-        self.play_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.tools.key_choice_override, source=self.play_choice)
+        self.relay_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.common.key_choice_override, source=self.relay_choice)
+        self.play_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.common.key_choice_override, source=self.play_choice)
         self.Bind(wx.EVT_COMBOBOX, handler=self.update_profile, source=self.profile)
         self.Bind(wx.EVT_BUTTON, handler=self.save, id=wx.ID_SAVE)
         self.Bind(wx.EVT_BUTTON, handler=self.new, id=wx.ID_NEW)
@@ -441,7 +444,7 @@ class SetupDialog(wx.Dialog):
         new_profile.Destroy()
 
         self.profile.Append(name)
-        self.games.append(jam.tools.Game(name=name))
+        self.games.append(jam.jam.Game(name=name))
         config.set_games(self.games)
         config.save()
 
@@ -486,6 +489,108 @@ class SetupDialog(wx.Dialog):
 
         logger.info("Game removed: {name}".format(name=name))
 
+
+class Config(object):
+    """
+    A class representing a pyjam config file.
+    """
+    def __init__(self, config_file):
+        """
+        Args:
+            config_file (str): Path to the config file.
+        """
+        self.config_file = config_file
+        self.steam_path = os.curdir
+        self.games = []
+        self.logger = {}
+        self.load()
+
+    def new(self):
+        """Create a new config file.
+
+        Returns:
+            None
+
+        """
+        steam = get_steam_path()
+        csgo_path = get_path(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')
+        css_path = get_path(steam, 'steamapps/common/Counter-Strike Source/css')
+        default = {'games':
+                   [{'audio_dir': 'audio/csgo', 'use_aliases': True, 'audio_rate': 22050,
+                     'name': 'Counter-Strike: Global Offensive',
+                     'mod_path': csgo_path if steam != os.curdir else os.curdir,
+                     'play_key': 'F8', 'relay_key': '='},
+                    {'audio_dir': 'audio/css', 'use_aliases': True, 'audio_rate': 11025,
+                     'name': 'Counter-Strike: Source',
+                     'mod_path': css_path if steam != os.curdir else os.curdir,
+                     'play_key': 'F8', 'relay_key': '='}],
+                   'steam_path': steam}
+
+        with open(self.config_file, 'w') as f:
+            json.dump(default, f, indent=4, sort_keys=True)
+
+    def load(self):
+        """Load/reload the config file.
+
+        Returns:
+            None
+        """
+        # type: () -> str, list
+        try:
+            with open(self.config_file) as f:
+                try:
+                    config_json = json.load(f)
+                except ValueError:
+                    logger.exception("Corrupt config.")
+                    error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
+                                             message="Malformed config file! Overwriting with default.",
+                                             caption="Error!", style=wx.OK | wx.ICON_WARNING)
+                    error.ShowModal()
+                    error.Destroy()
+                    self.new()
+                    return self.load()
+                else:
+                    self.steam_path = config_json.get('steam_path', os.curdir)
+                    self.games = config_json.get('games', [])
+                    self.logger = config_json.get('logger')
+        except FileNotFoundError:
+            self.new()
+            return self.load()
+
+    def save(self):
+        """Save the config file.
+        Returns:
+            None
+        """
+        with open(self.config_file, 'w') as f:
+            # config_dict = json.loads(jsonpickle.encode(self, unpicklable=False))
+            config_dict = dict(self.__dict__)  # Oh god, I've been removing the actual variable from the class...
+            config_dict.pop('config_file')  # Exclude the redundant config_file variable.
+            json.dump(config_dict, f, indent=4, sort_keys=True)
+            logger.info("Config saved to location {loc}".format(loc=self.config_file))
+
+    def get_games(self):
+        """Get the config's games.
+        Returns:
+            list[Game]: A list of Source Engine Game objects representing the config's games.
+        """
+        return [Game(get_path(game.get('audio_dir', os.curdir)), game.get('audio_rate', 11025),
+                     get_path(game.get('mod_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
+                     game.get('relay_key', '='), game.get('use_aliases', True)) for game in self.games]
+
+    def set_games(self, new_games):
+        """Set the config's games.
+        Args:
+            new_games (list[Game]): A list of Source Engine Game objects to set.
+
+        Returns:
+            None
+        """
+        # self.games = json.loads(jsonpickle.encode(new_games, unpicklable=False))
+        self.games = [dict(game.__dict__) for game in new_games]
+
+    def __repr__(self):
+        return "{c}(file={file})".format(c=self.__class__, file=self.config_file)
 
 class ErrorFilter(logging.Filter):
     def filter(self, record):
@@ -550,7 +655,7 @@ def exception_hook(error, value, trace):
 
 if __name__ == '__main__':
     wx_app = wx.App()
-    config = jam.tools.Config('jamconfig.json')
+    config = Config('jamconfig.json')
     logger = start_logger()
     sys.excepthook = exception_hook
     frame = MainFrame()

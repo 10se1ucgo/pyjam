@@ -261,7 +261,8 @@ class FFmpegConvertDialog(wx.Dialog):
         self.progress_dialog = None
         self.num_songs = 0
 
-        self.SetSizer(top_sizer)
+        self.SetSizerAndFit(top_sizer)
+        self.SetSize(400, 250)
         self.Center()
         self.ShowModal()
 
