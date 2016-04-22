@@ -420,6 +420,17 @@ class JamObserver(Observer):
 
 
 def write_configs(path, tracks, play_key, relay_key, use_aliases):
+    """Write the initial configs for running pyjam within the game.
+    Args:
+        path (str): The mod path for the Source Engine game.
+        tracks (list[Track]): The list of valid tracks.
+        play_key (str): The key used to start/stop music.
+        relay_key (str): The key used to interact with the game.
+        use_aliases (bool): Whether or not to use aliases
+
+    Returns:
+        None
+    """
     # /!\ Use double-quotes (") for Source engine configs! /!\
     # Lazy debugging stuff:
     # logger.write = lambda x: logger.debug(x)
@@ -506,9 +517,14 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
         logger.info("Wrote jam_help.cfg to {path}".format(path=cfg.name))
 
 
-
 def get_tracks(audio_path):
-    # type: (str) -> list
+    """Get all track files from a folder and generate aliases/binds (as well as read custom track data).
+    Args:
+        audio_path (str): The path to where all the .wavs are stored.
+
+    Returns:
+        list[Track]: A list of Track objects for all of the tracks found..
+    """
     black_list = [
         'buy', 'cheer', 'compliment', 'coverme', 'enemydown', 'enemyspot', 'fallback', 'followme', 'getout',
         'go', 'holdpos', 'inposition', 'negative', 'regroup', 'report', 'reportingin', 'roger', 'sectorclear',
@@ -562,8 +578,13 @@ def get_tracks(audio_path):
 
 
 def filter_alias(alias):
-    # type: (str) -> str
-    # No non-alphanumerical characters, thanks. Though, 'alias' does support quite a few of them. Too lazy to filter.
+    """Filter an alias, removing all non-alphabetic characters or spaces.
+    Args:
+        alias (str): The alias to filter.
+
+    Returns:
+        str: The filtered alias.
+    """
     filtered = []
     for char in alias:
         if char.isalpha() or char.isspace():
@@ -574,7 +595,10 @@ def filter_alias(alias):
 
 
 def get_steam_path():
-    # type: () -> str
+    """Get the path for Steam from the Steam process. If that fails, it uses the registry on Windows.
+    Returns:
+        str: The path to Steam. If the path could not be found, the current directory is returned instead (os.curdir)
+    """
     for pid in psutil.process_iter():
         try:
             if pid.name().lower() == 'steam.exe' or pid.name().lower() == 'steam':
@@ -593,6 +617,14 @@ def get_steam_path():
 
 
 def bindable(key):
+    """Test if a key is a valid Source Engine key.
+    Args:
+        key (str or int): Either the wx.WXK key code, or the string key.
+
+    Returns:
+        bool or str: If True, the key is already a valid Source Engine key. If a str, the key was able to be converted.
+            False otherwise.
+    """
     # type: (str) -> bool or str
     if isinstance(key, str):
         return key.upper() in SOURCE_KEYS

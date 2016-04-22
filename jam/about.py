@@ -317,6 +317,14 @@ class Licenses(wx.Dialog):
 
 
 def update_check(parent):
+    """Check for updates using the GitHub API
+
+    Args:
+        parent (wx.Window): The parent window (for the message dialog)
+
+    Returns:
+        None
+    """
     r = requests.get('https://api.github.com/repos/10se1ucgo/pyjam/releases/latest')
 
     if not r.ok:

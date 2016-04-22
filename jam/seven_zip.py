@@ -26,9 +26,22 @@ except ImportError:
 
 
 def find():
+    """Get the path to 7zip.
+    Returns:
+        None or str: The path to 7zip. None if not found.
+    """
     return which('7z.exe') or which('7za.exe') or which('bin/7za.exe')
 
 
 def extract_single(archive, file, dest):
+    """Extract a file from an archive using 7zip.
+    Args:
+        archive (str): The path to the archive to extract.
+        file (str): The name of the file to be extracted from the archive.
+        dest (str): The destination to the file.
+
+    Returns:
+        None
+    """
     cmd = "{bin} e -y {archive} -o{dest} {file} -r".format(bin=find(), archive=archive, dest=dest, file=file)
     subprocess.call(shlex.split(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)

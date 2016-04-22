@@ -21,7 +21,9 @@ import os
 import threading
 import webbrowser
 
+import lazyload
 import requests
+lazyload.make_lazy('youtube_dl')
 import youtube_dl
 import wx
 from ObjectListView import ColumnDefn, ObjectListView

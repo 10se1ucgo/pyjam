@@ -343,6 +343,11 @@ class FFmpegConvertDialog(wx.Dialog):
 
 
 def find():
+    """Get the path to FFmpeg/avconv.
+
+    Returns:
+        None or str: The path to FFmpeg or avconv. None if not found.
+    """
     # type: () -> str or None
     if sys.platform == "win32":
         ff = which('ffmpeg.exe') or which('bin/ffmpeg.exe') or which('avconv')
@@ -355,8 +360,19 @@ def find():
 
 
 def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
+    """Convert an audio file with FFmpeg.
+
+    Args:
+        file (str): The path to the file to convert.
+        dest (str): The destination to put the converted file.
+        rate (int or str): The sample rate for conversion.
+        vol (int): The volume to convert at.
+        codec (str): The codec to use.
+
+    Returns:
+        subprocess.Popen(): The subprocess.Popen object representing the command.
+    """
     # type: (str, str, int or str, int, str) -> subprocess.Popen object
-    rate = str(rate)
-    cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
-           '-acodec', codec, '-ar', rate, '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
+    cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100', '-acodec', codec,
+           '-ar', str(rate), '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
