@@ -80,14 +80,27 @@ logger = logging.getLogger(__name__)
 
 
 class Config(object):
+    """
+    A class representing a pyjam config file.
+    """
     def __init__(self, config_file):
+        """
+        Args:
+            config_file (str): Path to the config file.
+        """
         self.config_file = config_file
-        self.steam_path = ''
+        self.steam_path = os.curdir
         self.games = []
+        self.logger = {}
         self.load()
 
     def new(self):
-        # this is ugly
+        """Create a new config file.
+
+        Returns:
+            None
+
+        """
         steam = get_steam_path()
         csgo_path = get_path(steam, 'steamapps/common/Counter-Strike Global Offensive/csgo')
         css_path = get_path(steam, 'steamapps/common/Counter-Strike Source/css')
@@ -106,26 +119,26 @@ class Config(object):
             json.dump(default, f, indent=4, sort_keys=True)
 
     def load(self):
+        """Load/reload the config file.
+
+        Returns:
+            None
+        """
         # type: () -> str, list
         try:
             with open(self.config_file) as f:
                 try:
                     config_json = json.load(f)
                 except ValueError:
+                    logger.exception("Corrupt config.")
                     error = wx.MessageDialog(parent=wx.GetApp().GetTopWindow(),
                                              message="Malformed config file! Overwriting with default.",
                                              caption="Error!", style=wx.OK | wx.ICON_WARNING)
                     error.ShowModal()
                     error.Destroy()
                     self.new()
-                    logger.exception("Corrupt config.")
                     return self.load()
                 else:
-                    for game in config_json.get('games', []):
-                        if not bindable(game.get('play_key', 'F8')):
-                            game['play_key'] = 'F8'
-                        if not bindable(game.get('relay_key', '=')):
-                            game['relay_key'] = '='
                     self.steam_path = config_json.get('steam_path', os.curdir)
                     self.games = config_json.get('games', [])
                     self.logger = config_json.get('logger')
@@ -134,6 +147,10 @@ class Config(object):
             return self.load()
 
     def save(self):
+        """Save the config file.
+        Returns:
+            None
+        """
         with open(self.config_file, 'w') as f:
             # config_dict = json.loads(jsonpickle.encode(self, unpicklable=False))
             config_dict = dict(self.__dict__)  # Oh god, I've been removing the actual variable from the class...
@@ -142,14 +159,22 @@ class Config(object):
             logger.info("Config saved to location {loc}".format(loc=self.config_file))
 
     def get_games(self):
-        # type: () -> list
-        # ugly as sin
+        """Get the config's games.
+        Returns:
+            list[Game]: A list of Source Engine Game objects representing the config's games.
+        """
         return [Game(get_path(game.get('audio_dir', os.curdir)), game.get('audio_rate', 11025),
                      get_path(game.get('mod_path', os.curdir)), game.get('name'), game.get('play_key', 'F8'),
                      game.get('relay_key', '='), game.get('use_aliases', True)) for game in self.games]
 
     def set_games(self, new_games):
-        # type: (list) -> None
+        """Set the config's games.
+        Args:
+            new_games (list[Game]): A list of Source Engine Game objects to set.
+
+        Returns:
+            None
+        """
         # self.games = json.loads(jsonpickle.encode(new_games, unpicklable=False))
         self.games = [dict(game.__dict__) for game in new_games]
 
@@ -158,14 +183,30 @@ class Config(object):
 
 
 class Track(object):
+    """
+    A class representing a sound track.
+    """
     def __init__(self, index, name, aliases, path, bind=None):
+        """
+        Args:
+            index (int): The ID of the Track. The value can be random, it is only used for display.
+            name (str): The name of the Track. Also only used for display.
+            aliases (list[str]): A list of aliases that can be used in-game instead of the index.
+            path (str): Path to the file.
+            bind (str or None): Bind that the track can be used.
+        """
         self.index = index
         self.name = unidecode.unidecode(name)
         self.aliases = [unidecode.unidecode(alias) for alias in aliases]
         self.path = path
-        self.bind = bind
+        self.bind = bind if bindable(bind) else None
 
     def get_aliases(self):
+        """Get the Track's aliases..
+
+        Returns:
+            str: A string representation of the aliases.
+        """
         return str(self.aliases).strip('[]') if self.aliases else "This track has no aliases"
 
     def __repr__(self):
@@ -178,14 +219,27 @@ class Track(object):
 
 
 class Game(object):
+    """
+    A class representing a Source Engine game.
+    """
     def __init__(self, audio_dir=os.curdir, audio_rate=11025, mod_path=os.curdir,
                  name=None, play_key='F8', relay_key='=', use_aliases=True):
+        """
+        Args:
+            audio_dir (str): Path for finding audio.
+            audio_rate (int): The sample rate the game accepts.
+            mod_path (str): Path to the mod folder (e.g. "Steam/SteamApps/common/Team Fortress 2/tf2")
+            name (str): The name of the game.
+            play_key (str): The key used to start/stop music in-game.
+            relay_key (str): The key used to interact with the game.
+            use_aliases (bool): Whether or not to use aliases to select songs in-game.
+        """
         self.audio_dir = audio_dir
         self.audio_rate = audio_rate
         self.mod_path = mod_path
         self.name = unidecode.unidecode(name)
-        self.play_key = play_key
-        self.relay_key = relay_key
+        self.play_key = play_key if bindable(play_key) else "F8"
+        self.relay_key = relay_key if bindable(relay_key) else "="
         self.use_aliases = use_aliases
 
     def __repr__(self):
@@ -198,7 +252,16 @@ class Game(object):
 
 
 class Jam(object):
+    """
+    The actual worker that does the playing of music.
+    """
     def __init__(self, steam_path, game_class, track_list):
+        """
+        Args:
+            steam_path (str): Path to Steam.
+            game_class (Game): The game class for the running game.
+            track_list (ObjectListView[Track]): The ObjectListView that contains all of the Tracks.
+        """
         self.steam_path = steam_path
         self.game = game_class
         self.track_list = track_list
@@ -210,6 +273,10 @@ class Jam(object):
         self.previous_bind = None
 
     def start(self):
+        """Start the observer and event handler + write the configs.
+        Returns:
+            None
+        """
         self.observer.schedule(self.event_handler, self.user_data, recursive=True)
         self.observer.start()
         write_configs(self.game.mod_path, self.track_list.GetObjects(), self.game.play_key,
@@ -219,6 +286,10 @@ class Jam(object):
             cfg.write('\nexec jam\n')
 
     def stop(self):
+        """Stop the observer and remove all configs.
+        Returns:
+            None
+        """
         self.observer.stop()
         self.observer.join()
         logger.info("Stopping...")
@@ -244,6 +315,13 @@ class Jam(object):
         logger.info("Removed 'exec jam' from autoexec.")
 
     def on_event(self, path):
+        """
+        Args:
+            path (str): The path to the event.
+
+        Returns:
+            None
+        """
         logger.info("jam_cmd.cfg change detected, parsing config for song index/command...")
         with open(get_path(path)) as cfg:
             for line in cfg:
@@ -269,6 +347,14 @@ class Jam(object):
                     return self.read_command(bind)
 
     def read_command(self, bind):
+        """Read the relay key for a command to run.
+
+        Args:
+            bind (list[str]): The command the bind was set to.
+
+        Returns:
+            None
+        """
         try:
             args = bind[1:]
         except IndexError:
@@ -284,6 +370,14 @@ class Jam(object):
             self.convert(os.path.abspath(''.join(args)))
 
     def load_song(self, index):
+        """Load a song with the specified index.
+
+        Args:
+            index (int): The index of the song to load.
+
+        Returns:
+            None
+        """
         try:
             track = self.track_list.GetObjects()[index]
         except IndexError:
@@ -298,6 +392,14 @@ class Jam(object):
             cfg.write('say "pyjam :: Song :: {name}"\n'.format(name=track.name))
 
     def search(self, query):
+        """Perform a YouTube search with a query (in-game).
+
+        Args:
+            query (str): The query to search for.
+
+        Returns:
+            None
+        """
         result = yt_search(query)
         with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
@@ -312,6 +414,14 @@ class Jam(object):
                 cfg.write('echo "{out}"\n'.format(out=out))
 
     def download(self, urls):
+        """Download videos from a list of URLs
+
+        Args:
+            urls (str): The comma seperated list of URLs to download
+
+        Returns:
+            None
+        """
         if self.total_downloads:
             # A download is already in progress.
             return
@@ -348,6 +458,13 @@ class Jam(object):
         self.convert(os.path.abspath('_ingame_dl'))
 
     def convert(self, folder):
+        """Convert all files in a folder.
+        Args:
+            folder (str): Path to the folder
+
+        Returns:
+            None
+        """
         with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             if ffmpeg.find() is None:
                 cfg.write('echo "PYJAM CONVERTER"\n')
@@ -431,10 +548,6 @@ def write_configs(path, tracks, play_key, relay_key, use_aliases):
     Returns:
         None
     """
-    # /!\ Use double-quotes (") for Source engine configs! /!\
-    # Lazy debugging stuff:
-    # logger.write = lambda x: logger.debug(x)
-    # cfg = logger
     with open(get_path(path, 'cfg/jam.cfg'), 'w') as cfg:
         cfg.write('bind {play_key} jam_play\n'.format(play_key=play_key))
         cfg.write('alias jam_play jam_on\n')

@@ -306,7 +306,6 @@ def yt_search(query):
     Returns:
         list or list[dict]: The list containing the dictionaries of the results. List is empty if there was an error.
     """
-    # type (str) -> list
     r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
     results = []
 
