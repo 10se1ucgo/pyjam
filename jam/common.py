@@ -260,5 +260,5 @@ def get_resource(path):
     Returns:
         str: The absolute path to the resource.
     """
-    base = getattr('sys', '_MEIPASS', os.curdir)
+    base = getattr(sys, '_MEIPASS', os.curdir)
     return os.path.abspath(os.path.join(base, path))
