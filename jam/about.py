@@ -27,6 +27,11 @@ __version__ = "1.3"
 
 
 def about_dialog(parent):
+    """An about dialog
+
+    Args:
+        parent (wx.Window): The parent window
+    """
     license_text = """
     Copyright (C) 10se1ucgo 2016
 
@@ -57,7 +62,14 @@ def about_dialog(parent):
 
 
 class Licenses(wx.Dialog):
+    """
+    A dialog for displaying Licenses
+    """
     def __init__(self, parent):
+        """
+        Args:
+            parent (wx.Window): The parent window.
+        """
         super(Licenses, self).__init__(parent, title="Licenses", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
                                        size=(600, 400))
 
