@@ -30,6 +30,7 @@ from ObjectListView import ColumnDefn, ObjectListView
 
 from .common import wrap_exceptions, get_path
 
+__all__ = ['DownloaderThread', 'DownloaderDialog', 'SearchDialog', 'yt_extract', 'yt_search']
 logger = logging.getLogger(__name__)
 PD_STYLE = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT | wx.PD_ELAPSED_TIME | wx.PD_ESTIMATED_TIME
 

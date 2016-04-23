@@ -35,7 +35,9 @@ try:
 except NameError:
     FileNotFoundError = IOError
 
+__all__ = ['Jam', 'JamObserver', 'JamHandler', 'write_configs', 'get_tracks', 'filter_alias']
 logger = logging.getLogger(__name__)
+
 
 class Jam(object):
     """
@@ -294,6 +296,7 @@ class Jam(object):
             cfg.write('echo "pyjam will now reload..."\n')
             cfg.write('exec jam\n')
         self.total_downloads = 0
+
 
 class JamHandler(FileSystemEventHandler):
     def __init__(self, calling_class, file_name):

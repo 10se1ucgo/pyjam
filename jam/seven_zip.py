@@ -24,6 +24,8 @@ try:
 except ImportError:
     from shutilwhich import which
 
+__all__ = ['find', 'extract_single']
+
 
 def find():
     """Get the path to 7zip.

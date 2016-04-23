@@ -23,6 +23,7 @@ import wx
 import wx.lib.scrolledpanel as sp
 import wx.adv
 
+__all__ = ['about_dialog', 'Licenses', 'update_check', '__version__']
 __version__ = "1.3"
 
 

@@ -160,14 +160,14 @@ class MainPanel(wx.Panel):
 
     def game_select(self, event):
         self.game = self.games[self.profile.GetSelection()]
-        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
     def start_stop(self, event):
         if not self.game_watcher:
             self.refresh(event=None)
             self.start_stop_button.SetLabel("Starting...")
             self.start_stop_button.Disable()
-            self.game_watcher = jam.jam.Jam(config.steam_path, self.game, self.track_list)
+            self.game_watcher = jam.Jam(config.steam_path, self.game, self.track_list)
             self.game_watcher.start()
             self.start_stop_button.Enable()
             self.start_stop_button.SetLabel("Stop")
@@ -183,7 +183,7 @@ class MainPanel(wx.Panel):
             self.parent.status_bar.SetStatusText('Status: Stopped')
 
     def refresh(self, event):
-        tracks = jam.jam.get_tracks(self.game.audio_dir)
+        tracks = jam.get_tracks(self.game.audio_dir)
         self.track_list.SetObjects(tracks)
 
     def convert(self, event, in_dir=None):
@@ -241,7 +241,7 @@ class MainPanel(wx.Panel):
 
         new_aliases = dialog.GetValue()
         dialog.Destroy()
-        filtered_aliases = jam.jam.filter_alias(new_aliases).split()
+        filtered_aliases = jam.filter_alias(new_aliases).split()
         self.write_track_data("aliases", filtered_aliases)
 
     def clear_aliases(self, event):
@@ -275,7 +275,7 @@ class MainPanel(wx.Panel):
 
     def clear_all(self, event):
         open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
-        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
     def write_track_data(self, key, data):
         # type (str, object) -> None
@@ -309,7 +309,7 @@ class MainPanel(wx.Panel):
         with open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w') as f:
             json.dump(track_data, f, sort_keys=True)
 
-        self.track_list.SetObjects(jam.jam.get_tracks(self.game.audio_dir))
+        self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
     def settings(self, event):
         SetupDialog(self)
@@ -333,7 +333,7 @@ class SetupDialog(wx.Dialog):
         super(SetupDialog, self).__init__(parent, title="pyjam Setup", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         self.steam_path = wx.DirPickerCtrl(self, name="Path to Steam")
-        self.steam_path.SetInitialDirectory(jam.common.get_steam_path())
+        self.steam_path.SetInitialDirectory(get_steam_path())
         steam_path_text = wx.StaticText(self, label="Path to Steam (e.g. C:\\Program Files (x86)\\Steam)")
 
         self.games = config.get_games()
@@ -347,7 +347,7 @@ class SetupDialog(wx.Dialog):
         prof_name_text = wx.StaticText(self, label="Profile/game name")
 
         self.game_path = wx.DirPickerCtrl(self, message="Path to game")
-        self.game_path.SetInitialDirectory(jam.common.get_steam_path())
+        self.game_path.SetInitialDirectory(get_steam_path())
         self.game_path.SetToolTip("The folder the game is located in. Include the mod folder. For example, "
                                   "/Steam/steamapps/common/Counter-Strike: Global Offensive/csgo")
         game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
@@ -454,7 +454,7 @@ class SetupDialog(wx.Dialog):
         new_profile.Destroy()
 
         self.profile.Append(name)
-        self.games.append(jam.jam.Game(name=name))
+        self.games.append(Game(name=name))
         config.set_games(self.games)
         config.save()
 

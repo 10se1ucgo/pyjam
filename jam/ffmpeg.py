@@ -35,6 +35,8 @@ try:
 except ImportError:
     from shutilwhich import which
 
+__all__ = ['FILE_EXTS', 'FFmpegDownloaderThread', 'FFmpegDownloader', 'FFmpegConvertThread', 'FFmpegConvertDialog',
+           'find', 'convert_audio']
 logger = logging.getLogger(__name__)
 ENCODER_START = 36
 ENCODER_LEN = 34
