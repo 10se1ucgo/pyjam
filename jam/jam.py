@@ -88,7 +88,7 @@ class Jam(object):
             os.remove(get_path(self.game.mod_path, 'cfg/jam_help.cfg'))
             os.remove(get_path(self.game.mod_path, self.voice))
             logger.info("Succesfully removed pyjam config files.")
-        except (FileNotFoundError, IOError):
+        except (FileNotFoundError, OSError):
             logger.exception("Could not remove some files:")
 
         with open(get_path(self.game.mod_path, 'cfg/autoexec.cfg')) as cfg:
