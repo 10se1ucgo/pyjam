@@ -20,6 +20,7 @@
 import logging
 import os
 import traceback
+import sys
 from functools import wraps
 
 import psutil
@@ -176,6 +177,40 @@ def wrap_exceptions(func):
     return wrapper
 
 
+def bindable(key):
+    """Test if a key is a valid Source Engine key.
+    Args:
+        key (str or int): Either the wx.WXK key code, or the string key.
+
+    Returns:
+        bool or str: If True, the key is already a valid Source Engine key. If a str, the key was able to be converted.
+            False otherwise.
+    """
+    if isinstance(key, str):
+        return key.upper() in SOURCE_KEYS
+    elif isinstance(key, int):
+        if key in WX_KEYS_CONVERSION:
+            return WX_KEYS_CONVERSION[key]
+        elif chr(key).upper() in SOURCE_KEYS:
+            return True
+
+    return False
+
+
+def key_choice_override(event):
+    converted = bindable(event.GetKeyCode())
+    # If converted gave us a bool, it's already a compatible key
+    if converted is True:
+        event.GetEventObject().SetStringSelection(chr(event.GetKeyCode()))
+        return True
+    # If converted gave us a string, it was converted
+    elif converted:
+        event.GetEventObject().SetStringSelection(converted)
+        return True
+    # Otherwise, it's not compatible and can't be converted.
+    return False
+
+
 def get_steam_path():
     """Get the path for Steam from the Steam process. If that fails, it uses the registry on Windows.
     Returns:
@@ -216,35 +251,14 @@ def get_path(path1, path2=None):
     return os.path.normpath(path1)
 
 
-def bindable(key):
-    """Test if a key is a valid Source Engine key.
+def get_resource(path):
+    """Get the absolute path for a resource. Required for PyInstaller.
+
     Args:
-        key (str or int): Either the wx.WXK key code, or the string key.
+        path (str): The relative path to the resource.
 
     Returns:
-        bool or str: If True, the key is already a valid Source Engine key. If a str, the key was able to be converted.
-            False otherwise.
+        str: The absolute path to the resource.
     """
-    if isinstance(key, str):
-        return key.upper() in SOURCE_KEYS
-    elif isinstance(key, int):
-        if key in WX_KEYS_CONVERSION:
-            return WX_KEYS_CONVERSION[key]
-        elif chr(key).upper() in SOURCE_KEYS:
-            return True
-
-    return False
-
-
-def key_choice_override(event):
-    converted = bindable(event.GetKeyCode())
-    # If converted gave us a bool, it's already a compatible key
-    if converted is True:
-        event.GetEventObject().SetStringSelection(chr(event.GetKeyCode()))
-        return True
-    # If converted gave us a string, it was converted
-    elif converted:
-        event.GetEventObject().SetStringSelection(converted)
-        return True
-    # Otherwise, it's not compatible and can't be converted.
-    return False
+    base = getattr('sys', '_MEIPASS', os.curdir)
+    return os.path.abspath(os.path.join(base, path))

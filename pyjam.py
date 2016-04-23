@@ -28,7 +28,7 @@ import wx.lib.intctrl as intctrl  # This was fixed recently. You need the latest
 from ObjectListView import ColumnDefn, ObjectListView
 
 import jam
-from jam.common import Game, get_steam_path, get_path
+from jam.common import Game, get_steam_path, get_path, get_resource
 
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
@@ -41,7 +41,7 @@ NO_ALIASES = "This track has no aliases"  # im lazy, okay?
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(parent=wx.GetApp().GetTopWindow(), title="pyjam")
-        bitmap = wx.Bitmap(os.path.normpath('data/splash.png'), wx.BITMAP_TYPE_PNG)
+        bitmap = wx.Bitmap(get_resource('data/splash.png'), wx.BITMAP_TYPE_PNG)
         splash = wx.adv.SplashScreen(bitmap, wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_NO_TIMEOUT, 0, parent=self)
         panel = MainPanel(self)
         self.SetSize((600, 400))
@@ -62,7 +62,7 @@ class MainFrame(wx.Frame):
         if sys.platform == "win32":
             icon = wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO)
         else:
-            icon = wx.Icon(os.path.normpath('data/icon.ico'), wx.BITMAP_TYPE_ICO)
+            icon = wx.Icon(get_resource('data/icon.ico'), wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
         self.Bind(wx.EVT_MENU, handler=panel.settings, source=settings)
@@ -123,8 +123,8 @@ class MainPanel(wx.Panel):
 
         profile_sizer.Add(self.profile, 0, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
         olv_sizer.Add(self.track_list, 1, wx.LEFT | wx.RIGHT | wx.EXPAND | wx.ALIGN_TOP, 5)
-        button_sizer.Add(refresh_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(self.start_stop_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+        button_sizer.Add(refresh_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(convert_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         button_sizer.Add(download_button, 0, wx.ALL | wx.ALIGN_LEFT, 5)
 
@@ -346,25 +346,35 @@ class SetupDialog(wx.Dialog):
         self.prof_name = wx.TextCtrl(self)
         prof_name_text = wx.StaticText(self, label="Profile/game name")
 
-        self.game_path = wx.DirPickerCtrl(self, name="Path to game")
+        self.game_path = wx.DirPickerCtrl(self, message="Path to game")
         self.game_path.SetInitialDirectory(jam.common.get_steam_path())
+        self.game_path.SetToolTip("The folder the game is located in. Include the mod folder. For example, "
+                                  "/Steam/steamapps/common/Counter-Strike: Global Offensive/csgo")
         game_path_text = wx.StaticText(self, label="Game folder (include mod folder, e.g. games\\Team Fortress 2\\tf2)")
 
-        self.audio_path = wx.DirPickerCtrl(self, name="Path to audio")
+        self.audio_path = wx.DirPickerCtrl(self, message="Path to audio")
         self.audio_path.SetInitialDirectory(os.getcwd())
+        self.audio_path.SetToolTip("The folder pyjam will load audio from.")
         audio_path_text = wx.StaticText(self, label="Audio folder for this game")
 
         self.game_rate = intctrl.IntCtrl(self)
+        self.game_rate.SetToolTip("The sample rate mic audio is played at. Most games have this at 11025. "
+                                  "Games like CS:GO or Dota 2, however, use 22050."
+                                  "If audio sounds too slow or too fast, chances are you need to switch these values.")
         game_rate_text = wx.StaticText(self, label="Audio rate (usually 11025 or 22050)")
 
         self.relay_choice = wx.ComboBox(self, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.relay_choice.SetToolTip("The relay key is how pyjam will interact with the game. You only need "
+                                     "to change this if you have an overlapping bind.")
         relay_text = wx.StaticText(self, label="Relay key (default is fine for most cases, ignore)")
-        self.relay_choice.SetToolTip("Nice")
 
         self.play_choice = wx.ComboBox(self, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
+        self.play_choice.SetToolTip("The key you will use to start/stop music.")
         play_text = wx.StaticText(self, label="Play audio key")
 
         self.aliases_box = wx.CheckBox(self, label="Enable aliases")
+        self.aliases_box.SetToolTip("Whether or not to enable the usage of selecting songs with aliases (words) "
+                                    "instead of indexes (numbers)")
 
         save_button = wx.Button(self, wx.ID_SAVE, label="Save Game")
         new_button = wx.Button(self, wx.ID_NEW, label="New Game")
