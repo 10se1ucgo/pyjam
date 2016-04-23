@@ -59,6 +59,7 @@ pyjam is an open source, cross-platform audio player for Source and GoldSrc engi
 * [psutil](https://github.com/giampaolo/psutil) - Process/system utilities  (Used for detecting Steam path)
 * [requests](http://docs.python-requests.org/en/master/) - HTTP library used for downloading FFmpeg
 * [unidecode](https://pypi.python.org/pypi/Unidecode) - Filter out pesky unicode characters that cause problems :(
+* [lazyload](https://pypi.python.org/pypi/lazyload) - youtube-dl greatly increases startup time.
 
 ## Python <3.3
 * [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which()
