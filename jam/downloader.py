@@ -250,7 +250,7 @@ class SearchDialog(wx.Dialog):
         self.search_recent.appendleft(query)
         self.search_query.SetMenu(self.search_menu())
 
-        results = yt_search
+        results = yt_search(query)
         if not results:
             alert = wx.MessageDialog(parent=self,
                                      message="There was an error processing your request.\nPlease try again later",
