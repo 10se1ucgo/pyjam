@@ -307,20 +307,19 @@ def yt_search(query):
     Returns:
         list or list[dict]: The list containing the dictionaries of the results. List is empty if there was an error.
     """
-    r = requests.get('https://pyjam-api.appspot.com', params={'q': query, 'app': 'pyjam'})
+    r = requests.get('https://pyjam-api.appspot.com/get', params={'q': query, 'app': 'pyjam'})
     results = []
 
     if not r.ok:
         return results
 
     for item in r.json()['items']:
-        results.append(
-            {"title": item["snippet"]["title"],
-             "desc": item["snippet"]["description"],
-             "id": item["id"]["videoId"],
-             "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
-             }
-        )
+        results.append({
+                "title": item["snippet"]["title"],
+                "desc": item["snippet"]["description"],
+                "id": item["id"]["videoId"],
+                "url": "https://www.youtube.com/watch?v={id}".format(id=item["id"]["videoId"])
+            })
     return results
 
 
