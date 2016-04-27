@@ -23,17 +23,23 @@ import traceback
 import sys
 from functools import wraps
 
-import psutil
 import unidecode
 import wx
 
+winreg = None
 try:
     import winreg
 except ImportError:
     try:
         import _winreg as winreg
     except ImportError:
-        winreg = False
+        pass
+
+psutil = None
+try:
+    import psutil
+except ImportError:
+    pass
 
 __all__ = ["SOURCE_KEYS", "WX_KEYS_CONVERSION", "Track", "Game", "wrap_exceptions", "get_steam_path",
            "get_path", "bindable", "key_choice_override"]
@@ -216,12 +222,13 @@ def get_steam_path():
     Returns:
         str: The path to Steam. If the path could not be found, the current directory is returned instead (os.curdir)
     """
-    for pid in psutil.process_iter():
-        try:
-            if pid.name().lower() == 'steam.exe' or pid.name().lower() == 'steam':
-                return os.path.dirname(pid.exe())
-        except psutil.Error:
-            logger.exception("Could not get Steam path from its process.")
+    if psutil:
+        for pid in psutil.process_iter():
+            try:
+                if pid.name().lower() == 'steam.exe' or pid.name().lower() == 'steam':
+                    return os.path.dirname(pid.exe())
+            except psutil.Error:
+                logger.exception("Could not get Steam path from its process.")
 
     if winreg:
         try:

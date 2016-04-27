@@ -55,11 +55,11 @@ pyjam is an open source, cross-platform audio player for Source and GoldSrc engi
     * Compiling for Python 3.5 is a bit broken. [Patch + a wheel for CPython 3.5 x64 can be found here](https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e)
 * [ObjectListView](https://pypi.python.org/pypi/ObjectListView) - wx.ListCtrl wrapper (much easier to use)
 * [watchdog](https://pypi.python.org/pypi/watchdog) - Cross-platform file system monitoring
-* [youtube-dl](https://github.com/rg3/youtube-dl/) - Audio/Video downloader (supports many websites, not just YouTube)
-* [psutil](https://github.com/giampaolo/psutil) - Process/system utilities  (Used for detecting Steam path)
+* [OPTIONAL: youtube-dl](https://github.com/rg3/youtube-dl/) - Audio/Video downloader (supports many websites, not just 
+YouTube)
+* [OPTIONAL: psutil](https://github.com/giampaolo/psutil) - Process/system utilities  (Used for detecting Steam path)
 * [requests](http://docs.python-requests.org/en/master/) - HTTP library used for downloading FFmpeg
 * [unidecode](https://pypi.python.org/pypi/Unidecode) - Filter out pesky unicode characters that cause problems :(
-* [lazyload](https://pypi.python.org/pypi/lazyload) - youtube-dl greatly increases startup time.
 
 ## Python <3.3
 * [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which()

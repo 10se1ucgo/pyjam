@@ -16,8 +16,16 @@
 # along with pyjam.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 
-from . import about, common, downloader, ffmpeg, seven_zip, jam
+from . import about, common, ffmpeg, seven_zip, jam
 from .jam import *
 
-__all__ = ['about', 'common', 'downloader', 'ffmpeg', 'seven_zip', 'jam']
 logger = logging.getLogger(__name__)
+
+downloader = None
+try:
+    from . import downloader
+except ImportError:
+    logger.exception("Error importing downloader, youtube-dl is likely not installed.")
+
+
+__all__ = ['about', 'common', 'downloader', 'ffmpeg', 'seven_zip', 'jam', 'waveform']

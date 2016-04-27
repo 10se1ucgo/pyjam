@@ -222,7 +222,10 @@ class MainPanel(wx.Panel):
             self.game_select(event=None)
 
     def download(self, event):
-        # youtube-dl takes a long time to load, and it hinders start up time :/
+        if not jam.downloader:
+            msg = ("There was an error loading the pyjam downloader.\n"
+                   "It requires the youtube-dl module installed, please make sure you have it.")
+            raise ImportError(msg)
         jam.downloader.DownloaderDialog(self)
 
     def list_right_click(self, event):

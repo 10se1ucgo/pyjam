@@ -28,15 +28,21 @@ from watchdog.events import FileSystemEventHandler
 from . import ffmpeg
 from .about import __version__
 from .common import *
-from .downloader import DownloaderThread, yt_extract, yt_search
+
+__all__ = ['Jam', 'JamObserver', 'JamHandler', 'write_configs', 'get_tracks', 'filter_alias']
+logger = logging.getLogger(__name__)
+
+
+downloader = None
+try:
+    from . import downloader
+except ImportError:
+    logger.exception("Error importing downloader, youtube-dl is likely not installed.")
 
 try:
     FileNotFoundError  # This will throw a NameError if the user is using Python 2.
 except NameError:
     FileNotFoundError = IOError
-
-__all__ = ['Jam', 'JamObserver', 'JamHandler', 'write_configs', 'get_tracks', 'filter_alias']
-logger = logging.getLogger(__name__)
 
 
 class Jam(object):
@@ -189,7 +195,15 @@ class Jam(object):
         Returns:
             None
         """
-        result = yt_search(query)
+        if not downloader:
+            with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
+                cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
+                cfg.write('echo "----------------------"\n')
+                cfg.write('echo "There was an error processing your request."\n')
+                cfg.write('echo "The youtube-dl module is likely not installed."\n')
+                cfg.write('echo "It is required for usage."\n')
+                return
+        result = downloader.yt_search(query)
         with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
             cfg.write('echo "YOUTUBE SEARCH RESULTS"\n')
             cfg.write('echo "----------------------"\n')
@@ -215,11 +229,19 @@ class Jam(object):
             # A download is already in progress.
             return
         with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
+            if not downloader:
+                # youtube-dl not installed.
+                cfg.write('echo "PYJAM DOWNLOADER"\n')
+                cfg.write('echo "----------------------"\n')
+                cfg.write('echo "There was an error processing your request."\n')
+                cfg.write('echo "The youtube-dl module is likely not installed."\n')
+                cfg.write('echo "It is required for usage."\n')
+                return
             cfg.write('echo "PYJAM DOWNLOADER"\n')
             cfg.write('echo "------------------"\n')
             cfg.write('echo "Extracting URL info, starting download..."\n')
         logger.info("Recieved urls: {urls}".format(urls=urls))
-        urls = yt_extract(urls.split(','))
+        urls = downloader.yt_extract(urls.split(','))
         if not urls:
             with open(get_path(self.game.mod_path, 'cfg/jam_stdin.cfg'), 'w') as cfg:
                 cfg.write('echo "PYJAM DOWNLOADER"\n')
@@ -227,8 +249,8 @@ class Jam(object):
                 cfg.write('echo "Invalid/unsupported URL(s)!"\n')
             return
         self.total_downloads = len(urls)
-        downloader = DownloaderThread(self, urls, os.path.abspath('_ingame_dl'))
-        downloader.start()
+        download_thread = downloader.DownloaderThread(self, urls, os.path.abspath('_ingame_dl'))
+        download_thread.start()
         logger.info(urls)
 
     def download_update(self, message):
@@ -268,8 +290,8 @@ class Jam(object):
                 cfg.write('echo "Beginning conversion..."\n')
 
         files = glob.glob(get_path(folder, '*.*'))
-        converter = ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
-        converter.start()
+        convert_thread = ffmpeg.FFmpegConvertThread(self, self.game.audio_dir, self.game.audio_rate, 85, files)
+        convert_thread.start()
 
     def convert_update(self, message):
         progress = "{songs} out of {total}".format(songs=message // 2, total=self.total_downloads)
