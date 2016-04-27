@@ -52,7 +52,7 @@ pyjam is an open source, cross-platform audio player for Source and GoldSrc engi
 ***This is only for those who plan on running the Python script. Most users can simply just download a pre-frozen executable from the [`Releases`](https://github.com/10se1ucgo/pyjam/releases) tab***
 * Tested on `CPython 3.5`. 2.7+ should work.
 * [wxPython Phoenix](https://github.com/wxWidgets/Phoenix) - GUI
-    * Compiling for Python 3.5 is a bit broken. [Patch + a wheel for CPython 3.5 x64 can be found here](https://gist.github.com/10se1ucgo/65ee42ad2fdc59091c6e)
+    * Compiling it yourself can be a bit ugly, [pre-built wheels here](http://wxpython.org/Phoenix/snapshot-builds/)
 * [ObjectListView](https://pypi.python.org/pypi/ObjectListView) - wx.ListCtrl wrapper (much easier to use)
 * [watchdog](https://pypi.python.org/pypi/watchdog) - Cross-platform file system monitoring
 * [OPTIONAL: youtube-dl](https://github.com/rg3/youtube-dl/) - Audio/Video downloader (supports many websites, not just 
