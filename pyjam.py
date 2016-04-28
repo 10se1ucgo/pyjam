@@ -44,7 +44,7 @@ class MainFrame(wx.Frame):
         bitmap = wx.Bitmap(get_resource('data/splash.png'), wx.BITMAP_TYPE_PNG)
         splash = wx.adv.SplashScreen(bitmap, wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_NO_TIMEOUT, 0, parent=self)
         panel = MainPanel(self)
-        self.SetSize((600, 400))
+        self.SetSize(600, 400)
 
         file_menu = wx.Menu()
         settings = file_menu.Append(wx.ID_SETUP, "&Settings", "pyjam Setup")
@@ -141,6 +141,7 @@ class MainPanel(wx.Panel):
         set_bind = self.context_menu.Append(wx.ID_ANY, "Set bind")
         clear_bind = self.context_menu.Append(wx.ID_ANY, "Clear bind")
         clear_all = self.context_menu.Append(wx.ID_CLEAR, "Clear EVERYTHING (all tracks)")
+        trim_file = self.context_menu.Append(wx.ID_CUT, "Trim audio file")
 
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, handler=self.list_right_click, source=self.track_list)
         self.Bind(wx.EVT_MENU, handler=self.set_aliases, source=set_aliases)
@@ -148,6 +149,7 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, handler=self.set_bind, source=set_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_bind, source=clear_bind)
         self.Bind(wx.EVT_MENU, handler=self.clear_all, source=clear_all)
+        self.Bind(wx.EVT_MENU, handler=self.trim_file, source=trim_file)
 
         self.Bind(wx.EVT_COMBOBOX, handler=self.game_select, source=self.profile)
         self.Bind(wx.EVT_BUTTON, handler=self.refresh, source=refresh_button)
@@ -155,7 +157,7 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, handler=self.convert, source=convert_button)
         self.Bind(wx.EVT_BUTTON, handler=self.download, source=download_button)
 
-        self.Bind(wx.EVT_SIZE, handler=self.on_size)
+        # self.Bind(wx.EVT_SIZE, handler=self.on_size)
         self.Bind(wx.EVT_CLOSE, handler=self.on_exit)
 
     def game_select(self, event):
@@ -277,7 +279,8 @@ class MainPanel(wx.Panel):
         self.write_track_data("bind", None)
 
     def clear_all(self, event):
-        open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w').close()
+        with open(os.path.join(self.game.audio_dir, 'track_data.json'), 'w') as f:
+            f.write(json.dumps({}))
         self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
     def write_track_data(self, key, data):
@@ -293,7 +296,7 @@ class MainPanel(wx.Panel):
             track_data = {}
         except ValueError:
             track_data = {}
-            logger.exception("Invalid trackdata for {path}".format(path=data_path))
+            logger.exception("Invalid track data for {path}".format(path=data_path))
 
         # Remove duplicate track data.
         # This only really works for binds, because they're strings. Unless somehow your aliases are the exact same.
@@ -314,6 +317,14 @@ class MainPanel(wx.Panel):
 
         self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
+    def trim_file(self, event):
+        if not jam.waveform:
+            msg = ("There was an error loading the pyjam waveform viewer.\n"
+                   "It requires the numpy module installed, please make sure you have it.")
+            raise ImportError(msg)
+        track_obj = self.track_list.GetObjects()[self.selected_track]
+        jam.waveform.WaveformPlot(self, file=track_obj.path)
+
     def settings(self, event):
         SetupDialog(self)
         self.games = config.get_games()
@@ -324,6 +335,7 @@ class MainPanel(wx.Panel):
     def on_size(self, event):
         if self.GetAutoLayout():
             self.Layout()
+        event.Skip()
 
     def on_exit(self, event):
         if self.game_watcher:

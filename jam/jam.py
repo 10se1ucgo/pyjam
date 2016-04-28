@@ -33,10 +33,10 @@ __all__ = ['Jam', 'JamObserver', 'JamHandler', 'write_configs', 'get_tracks', 'f
 logger = logging.getLogger(__name__)
 
 
-downloader = None
 try:
     from . import downloader
 except ImportError:
+    downloader = None
     logger.exception("Error importing downloader, youtube-dl is likely not installed.")
 
 try:

@@ -21,11 +21,17 @@ from .jam import *
 
 logger = logging.getLogger(__name__)
 
-downloader = None
 try:
     from . import downloader
 except ImportError:
+    downloader = None
     logger.exception("Error importing downloader, youtube-dl is likely not installed.")
+
+try:
+    from . import waveform
+except ImportError:
+    waveform = None
+    logger.exception("Error importing waveform viewer, numpy is likely not installed.")
 
 
 __all__ = ['about', 'common', 'downloader', 'ffmpeg', 'seven_zip', 'jam', 'waveform']

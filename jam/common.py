@@ -26,20 +26,18 @@ from functools import wraps
 import unidecode
 import wx
 
-winreg = None
 try:
     import winreg
 except ImportError:
     try:
         import _winreg as winreg
     except ImportError:
-        pass
+        winreg = None
 
-psutil = None
 try:
     import psutil
 except ImportError:
-    pass
+    psutil = None
 
 __all__ = ["SOURCE_KEYS", "WX_KEYS_CONVERSION", "Track", "Game", "wrap_exceptions", "get_steam_path",
            "get_path", "bindable", "key_choice_override"]

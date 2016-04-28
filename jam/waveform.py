@@ -57,10 +57,10 @@ class WaveformPanel(wx.Panel):
 
 
 class WaveformPlot(wx.Frame):
-    def __init__(self, parent=None):
+    def __init__(self, parent, file):
         super(WaveformPlot, self).__init__(parent)
 
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.file = file
 
         self.plot = plot.PlotCanvas(self)
         self.plot.canvas.Bind(wx.EVT_LEFT_DOWN, self.lmb_down)
@@ -73,8 +73,10 @@ class WaveformPlot(wx.Frame):
 
         self.panel = WaveformPanel(self)
 
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(self.plot, 1, wx.EXPAND, 0)
         sizer.Add(self.panel, 0, wx.EXPAND, 0)
+        self.SetSizer(sizer)
 
         self.player = wx.media.MediaCtrl(parent=self, style=wx.SIMPLE_BORDER)
 
@@ -89,8 +91,10 @@ class WaveformPlot(wx.Frame):
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_TIMER, self.on_timer)
         self.Bind(wx.EVT_IDLE, self.on_idle)
+        self.Bind(wx.EVT_CLOSE, self.on_exit)
+
         self.load()
-        self.SetSizer(sizer)
+        self.Layout()
         self.Show()
 
     def on_size(self, event):
@@ -102,6 +106,7 @@ class WaveformPlot(wx.Frame):
             self.draw_box()
             self.selection_drawn = True
             self.resized = False
+        event.Skip()
 
     def on_change(self, times):
         if self.selection_drawn:
@@ -177,25 +182,23 @@ class WaveformPlot(wx.Frame):
     #     #     self.plot.Draw(self.plot.last_draw[0])
 
     def load(self):
-        dialog = wx.FileDialog(self, wildcard="WAV files (*.wav)|*.wav")
-        if dialog.ShowModal() == wx.ID_CANCEL:
-            self.Destroy()
-
-        file = dialog.GetPath()
-        wav = wave.open(file)
-
-        signal = np.fromstring(wav.readframes(-1), 'Int16')[::1000]
-        length = (len(signal) * 1000) / wav.getframerate()
+        with wave.open(self.file) as wav:
+            signal = np.fromstring(wav.readframes(-1), 'Int16')[::1000]
+            length = (len(signal) * 1000) / wav.getframerate()
         samples = np.linspace(0, length, num=len(signal))
         waveform = np.column_stack((samples, signal))
         self.panel.set_max(length)
 
         lines = plot.PolyLine(waveform, colour='blue')
-        self.plot.Draw(plot.PlotGraphics((lines,), os.path.basename(file), "Time (seconds)"))
-        self.player.Load(file)
+        self.plot.Draw(plot.PlotGraphics((lines,), os.path.basename(self.file), "Time (seconds)"))
+        self.player.Load(self.file)
         self.timer.Start(100)
 
     def play_song(self):
+        if not self.maximum or self.maximum == self.minimum:
+            self.player.Stop()
+            return
+
         self.player.Play()
         self.player.SetVolume(0.5)
         self.player.Seek(self.minimum)
@@ -207,7 +210,19 @@ class WaveformPlot(wx.Frame):
         if not (self.minimum < self.player.Tell() < self.maximum):
             self.play_song()
 
+    def on_exit(self, event):
+        # For some reason, the timer still tries to play the song even after the windows is being closed.
+        # (probably because window destruction is not synchronous, a wx.Yield() would probably fix it)
+        # The timer function even checks to see if the player is still loaded, but apparently the player is not
+        # destroyed when the window is destroyed, resulting in the player trying to play a song
+        # and Python crashes with exit code -1073741819 (0xC0000005) [Windows]
+        self.timer.Stop()
+        event.Skip()
+
 if __name__ == "__main__":
     app = wx.App()
-    WaveformPlot()
+    dialog = wx.FileDialog(None, wildcard="WAV files (*.wav)|*.wav")
+    if dialog.ShowModal() != wx.ID_CANCEL:
+        WaveformPlot(parent=None, file=dialog.GetPath())
+    dialog.Destroy()
     app.MainLoop()
