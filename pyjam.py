@@ -192,7 +192,8 @@ class MainPanel(wx.Panel):
         if jam.ffmpeg.find() is None and sys.platform == "win32":
             message = ("Couldn't detect FFmpeg in your PATH.\n"
                        "FFmpeg is required for audio conversion. Would you like to download it?")
-            do_download = wx.MessageDialog(self, message, "pyjam", wx.YES_NO | wx.ICON_QUESTION)
+            do_download = wx.MessageDialog(parent=self, message=message, caption="pyjam",
+                                           style=wx.YES_NO | wx.ICON_QUESTION)
 
             if do_download.ShowModal() == wx.ID_YES:
                 if platform.architecture()[0] == '64bit':
@@ -213,9 +214,8 @@ class MainPanel(wx.Panel):
             do_download.Destroy()
 
         elif jam.ffmpeg.find() is None:
-            message = wx.MessageDialog(parent=self,
-                                       message="You require FFmpeg or avconv to convert audio. Please install it.",
-                                       caption="pyjam")
+            message = wx.MessageDialog(parent=self, caption="pyjam",
+                                       message="You require FFmpeg or avconv to convert audio. Please install it.")
             message.ShowModal()
             message.Destroy()
 
@@ -257,7 +257,6 @@ class MainPanel(wx.Panel):
 
         bind_text = wx.StaticText(parent=dialog, label="Key:")
         bind_choice = wx.ComboBox(parent=dialog, choices=jam.common.SOURCE_KEYS, style=wx.CB_READONLY)
-        bind = bind_choice.GetStringSelection
 
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         key_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -269,11 +268,12 @@ class MainPanel(wx.Panel):
         top_sizer.Add(button_sizer, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         bind_choice.Bind(wx.EVT_KEY_DOWN, handler=jam.common.key_choice_override)
-        dialog.Bind(wx.EVT_BUTTON, handler=lambda x: (self.write_track_data('bind', bind()), x.Skip()), id=wx.ID_OK)
 
         dialog.SetSizerAndFit(top_sizer)
         dialog.Center()
-        dialog.ShowModal()
+        if dialog.ShowModal() == wx.ID_OK:
+            self.write_track_data('bind', bind_choice.GetStringSelection())
+        dialog.Destroy()
 
     def clear_bind(self, event):
         self.write_track_data("bind", None)
@@ -318,12 +318,48 @@ class MainPanel(wx.Panel):
         self.track_list.SetObjects(jam.get_tracks(self.game.audio_dir))
 
     def trim_file(self, event):
+        # This will eventually be moved to the FFmpeg module
+        if not jam.ffmpeg.find():
+            alert = wx.MessageDialog(parent=self, caption="pyjam",
+                                     message="You require FFmpeg or avconv to trim audio. Please install it.")
+            alert.ShowModal()
+            alert.Destroy()
+            return
         if not jam.waveform:
-            msg = ("There was an error loading the pyjam waveform viewer.\n"
-                   "It requires the numpy module installed, please make sure you have it.")
-            raise ImportError(msg)
-        track_obj = self.track_list.GetObjects()[self.selected_track]
-        jam.waveform.WaveformPlot(self, file=track_obj.path)
+            msg = ("There was an error loading the pyjam waveform viewer. It is required for audio trimming.\n"
+                   "It requires the numpy module installed, please make sure you have it.\nA version not requiring"
+                   "the waveform viewer will be added later (it will have no graphical hints, however).")
+            alert = wx.MessageDialog(parent=self, message=msg, caption="pyjam")
+            alert.ShowModal()
+            alert.Destroy()
+            return
+
+        track = self.track_list.GetObjects()[self.selected_track]
+        wave_dialog = jam.waveform.WaveformPlot(self, file=track.path)
+        if wave_dialog.ShowModal() != wx.ID_OK:
+            wave_dialog.Destroy()
+            return
+        values = wave_dialog.get_values()
+        wave_dialog.Destroy()
+
+        # a random dialog to show that pyjam is currently busy.
+        random_dialog = wx.Dialog(parent=self, title="pyjam: Working....")
+        random_dialog.Show()
+
+        path = os.path.splitext(track.path)
+        dest = path[0] + '.trim.wav'
+
+        p = jam.ffmpeg.trim_audio(track.path, dest, *values)
+        output = p.communicate()
+        logger.info(output[0].decode())
+        if p.returncode:
+            logger.critical("FFmpeg trimmer: Couldn't trimmer {track}".format(track=track.path))
+            logger.critical("FFmpeg trimmer: Error output log\n" + output[1].decode())
+            return
+
+        jam.ffmpeg.strip_encoder(dest)  # FFmpeg loves to add useless crap to our wav files.
+        os.replace(dest, track.path)
+        random_dialog.Destroy()
 
     def settings(self, event):
         SetupDialog(self)

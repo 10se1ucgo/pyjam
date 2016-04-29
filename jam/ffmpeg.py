@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import threading
+import wave
 
 import requests
 import wx
@@ -172,14 +173,16 @@ class FFmpegConvertThread(threading.Thread):
         while not self.is_aborted():
             try:
                 track = next(tracks)
-                file = get_path(self.dest, os.path.splitext(os.path.basename(track))[0])
+                file = get_path(self.dest, os.path.basename(track))
                 logger.info("FFmpeg converter: Total converted so far: {total}".format(total=self.converted // 2))
                 logger.info("FFmpeg converter: Remaining: {r}".format(r=len(self.songs) - self.converted // 2))
                 logger.info("Converting {track} with params: rate: {rate} volume: {vol}".format(track=track,
-                                                                                                 rate=self.rate,
-                                                                                                 vol=self.vol))
+                                                                                                rate=self.rate,
+                                                                                                vol=self.vol))
                 p = convert_audio(track, file, self.rate, self.vol)
                 output = p.communicate()  # output[0] is stdout, output[1] is stderr.
+                self.converted += 1
+                wx.CallAfter(self.parent.convert_update, message=self.converted)
                 logger.info(output[0].decode())
                 if p.returncode:
                     logger.critical("FFmpeg converter: Couldn't convert {track}".format(track=track))
@@ -189,20 +192,13 @@ class FFmpegConvertThread(threading.Thread):
                     self.converted += 1
                 else:
                     self.strip_encoder(file)
-                self.converted += 1
-                wx.CallAfter(self.parent.convert_update, message=self.converted)
             except StopIteration:
                 wx.CallAfter(self.parent.convert_complete, errors=errors)
                 break
 
     @wrap_exceptions
     def strip_encoder(self, file):
-        logger.info("Stripping metadata from {file}".format(file=file + '.wav'))
-        with open(file + '.wav', 'rb') as f:
-            wav = bytearray(f.read())
-        del wav[ENCODER_START:ENCODER_START + ENCODER_LEN]
-        with open(file + '.wav', 'wb') as f:
-            f.write(wav)
+        strip_encoder(file)
         self.converted += 1
         wx.CallAfter(self.parent.convert_update, message=self.converted)
 
@@ -263,8 +259,8 @@ class FFmpegConvertDialog(wx.Dialog):
         self.progress_dialog = None
         self.num_songs = 0
 
-        self.SetSizerAndFit(top_sizer)
-        self.SetSize(400, 250)
+        self.SetSizer(top_sizer)
+        # self.SetSize(400, 250)
         self.Center()
         self.ShowModal()
 
@@ -374,6 +370,45 @@ def convert_audio(file, dest, rate, vol, codec="pcm_s16le"):
     Returns:
         subprocess.Popen(): The subprocess.Popen object representing the command.
     """
-    cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100', '-acodec', codec,
-           '-ar', str(rate), '-af', 'volume={vol}'.format(vol=vol/100), '{dest}.wav'.format(dest=dest))
+    cmd = (find(), '-y', '-i', file, '-map_metadata', '-1', '-ac', '1', '-aq', '100',
+           '-acodec', codec, '-ar', str(rate), '-af', 'volume={vol}'.format(vol=vol/100), dest)
+    logger.info("Running FFmpeg convert command with command {cmd}".format(cmd=cmd))
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+
+
+def trim_audio(file, dest, start, stop):
+    """Trim an audio file with FFmpeg.
+
+    Args:
+        file (str): The path to the file to convert.
+        dest (str): The destination to put the converted file.
+        start (int): The start position.
+        stop (int): The stop position.
+
+    Returns:
+        subprocess.Popen(): The subprocess.Popen object representing the command.
+    """
+    cmd = (find(), '-y', '-i', file, '-ss', str(start), '-t', str(stop-start), '-acodec', 'copy', dest)
+    logger.info("Running FFmpeg trim command with command {cmd}".format(cmd=cmd))
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+
+
+def strip_encoder(file):
+    """Strip encoder metadata from an audio file with the Python wave module.
+    The wave module ignores any chunks that aren't the "fmt " or "data" chunk.
+    Note the space in "fmt ".
+
+    Args:
+        file (str): The path to the file to strip.
+
+    Returns:
+        None
+    """
+    logger.info("Stripping metadata from {file}".format(file=file))
+    with wave.open(file, 'r') as f:
+        params = f.getparams()
+        frames = f.readframes(-1)
+    with wave.open(file, 'w') as f:
+        print(params)
+        f.setparams(params)
+        f.writeframes(frames)
