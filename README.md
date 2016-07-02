@@ -66,32 +66,7 @@ path)
 * [shutilwhich](https://pypi.python.org/pypi/shutilwhich) - Backport of shutil.which()
 
 # TODO
-- NOTHING! All complete.
-- [x] Base UI stuff
-    - [x] Track list (ObjectListView)
-    - [x] Switch between games
-    - [x] Allow for custom aliases
-        - [x] GUI for implementing custom ~~aliases~~ track data
-        - right click on track>context menu>set [track data]
-        - [x] Format for custom ~~aliases~~ track data
-        - ```{"song1": {"aliases": ["alias1", "alias2", "etc"], bind: "KP_DEL"}}``` etc.
-            - [x] Read format
-            - [x] Write format
-- [x] Get the actual playing audio part of the program working
-      - [x] Write the initial configs
-      - [x] Watch 'jam_cmd.cfg' for updates and poll for requested song
-      - [x] Copy requested song to root dir
-- [x] Implement a config editor
-      - [x] Base reading and writing
-      - [x] Support all fields
-      - [x] Make it pretty.
-- [x] Implement an audio converter
-      - [x] FFmpeg downloader
-      - [x] FFmpeg convert command
-      - [x] GUI for accessing converter
-- [x] Implement audio downloading
-      - [x] youtube-dl
-      - [x] GUI for accessing downloader
+- [ ] [EASY] Drop 7-zip module on Windows. https://ffmpeg.zeranoe.com/builds now offers .zip builds.
 
 
 # KNOWN ISSUES
