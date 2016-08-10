@@ -67,6 +67,7 @@ path)
 
 # TODO
 - [ ] [EASY] Drop 7-zip module on Windows. https://ffmpeg.zeranoe.com/builds now offers .zip builds.
+- [ ] [MEDIUM] Replace `watchdog` dependency with `wx.FileSystemWatcher`.
 
 
 # KNOWN ISSUES
